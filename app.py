@@ -12,7 +12,6 @@ Permite al usuario:
 - Ver estadísticas, gráficos y tendencias de gastos
 - Filtrar datos por fecha, categoría, divisa y score
 - Ver presupuesto y alertas
-- Cambiar entre modo claro y oscuro
 
 Para ejecutar: streamlit run app.py
 """
@@ -24,10 +23,10 @@ import streamlit as st       # Framework para crear la interfaz web
 import pandas as pd          # Manejo de datos tabulares
 import plotly.express as px  # Gráficos interactivos
 import gspread               # Conexión con Google Sheets
+import json
 import os                    # Variables de entorno
 from datetime import datetime, timedelta
 from dotenv import load_dotenv  # Cargar variables desde .env
-from auditor import run_audit, connect_sheets  # Funciones de auditoría
 from currency import convertir_columna, formatear_moneda, obtener_tasas  # Conversión de divisas
 
 # ============================================================
@@ -36,39 +35,9 @@ from currency import convertir_columna, formatear_moneda, obtener_tasas  # Conve
 load_dotenv()
 st.set_page_config(page_title="Ge$torGasto$", page_icon="💰", layout="wide")
 
-# ============================================================
-# MODO OSCURO (CSS Personalizado)
-# ============================================================
-CSS_MODO_OSCURO = """
+# CSS para mejorar la apariencia
+st.markdown("""
 <style>
-    /* Modo Oscuro */
-    .stApp {
-        background-color: #1a1a2e;
-        color: #eaeaea;
-    }
-    .stSidebar {
-        background-color: #16213e;
-    }
-    .stMetric {
-        background-color: #0f3460;
-        padding: 15px;
-        border-radius: 10px;
-    }
-    .stDataFrame {
-        background-color: #1a1a2e;
-    }
-    h1, h2, h3, h4, h5, h6 {
-        color: #e94560 !important;
-    }
-    .stAlert {
-        background-color: #0f3460;
-    }
-</style>
-"""
-
-CSS_MODO_CLARO = """
-<style>
-    /* Modo Claro (por defecto) */
     .stMetric {
         background-color: #f8f9fa;
         padding: 15px;
@@ -76,17 +45,7 @@ CSS_MODO_CLARO = """
         border: 1px solid #dee2e6;
     }
 </style>
-"""
-
-# Inicializar estado del modo oscuro
-if "modo_oscuro" not in st.session_state:
-    st.session_state["modo_oscuro"] = False
-
-# Aplicar CSS según modo
-if st.session_state["modo_oscuro"]:
-    st.markdown(CSS_MODO_OSCURO, unsafe_allow_html=True)
-else:
-    st.markdown(CSS_MODO_CLARO, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # ============================================================
 # FUNCIONES PARA OBTENER SECRETOS
@@ -99,9 +58,48 @@ def obtener_secreto(nombre, default=None):
     Prioriza st.secrets para compatibilidad con Streamlit Cloud.
     """
     try:
-        return st.secrets.get(nombre, os.getenv(nombre, default))
+        if nombre in st.secrets:
+            return st.secrets[nombre]
     except:
-        return os.getenv(nombre, default)
+        pass
+    return os.getenv(nombre, default)
+
+# ============================================================
+# CONEXIÓN A GOOGLE SHEETS (para Streamlit Cloud)
+# ============================================================
+def connect_sheets():
+    """
+    Conecta con Google Sheets usando credenciales disponibles.
+    Soporta: archivo local, variable de entorno, y st.secrets
+    """
+    GOOGLE_CREDENTIALS_FILE = "credentials.json"
+    GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
+    
+    gc = None
+    
+    # Opción 1: Archivo local (desarrollo)
+    if os.path.exists(GOOGLE_CREDENTIALS_FILE):
+        gc = gspread.service_account(filename=GOOGLE_CREDENTIALS_FILE)
+    
+    # Opción 2: Variable de entorno
+    elif os.getenv("GOOGLE_CREDENTIALS"):
+        creds_json = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
+        gc = gspread.service_account_from_dict(creds_json)
+    
+    # Opción 3: Streamlit secrets
+    else:
+        try:
+            creds_str = st.secrets["GOOGLE_CREDENTIALS"]
+            creds_json = json.loads(creds_str)
+            gc = gspread.service_account_from_dict(creds_json)
+        except Exception as e:
+            raise FileNotFoundError(f"No se encontraron credenciales de Google: {e}")
+    
+    try:
+        sh = gc.open(GOOGLE_SHEET_NAME)
+        return sh.sheet1 
+    except gspread.exceptions.SpreadsheetNotFound:
+        raise ValueError(f"No se encontró la hoja: {GOOGLE_SHEET_NAME}")
 
 # ============================================================
 # SISTEMA DE AUTENTICACIÓN
@@ -140,12 +138,6 @@ if not verificar_login():
 # SIDEBAR: CONTROLES PRINCIPALES
 # ============================================================
 st.sidebar.header("⚙️ Panel de Control")
-
-# Toggle Modo Oscuro
-modo_oscuro = st.sidebar.toggle("🌙 Modo Oscuro", value=st.session_state["modo_oscuro"])
-if modo_oscuro != st.session_state["modo_oscuro"]:
-    st.session_state["modo_oscuro"] = modo_oscuro
-    st.rerun()
 
 # Botón cerrar sesión
 if st.sidebar.button("🔒 Cerrar Sesión"):
@@ -190,21 +182,6 @@ with st.sidebar.expander("➕ Registrar Nuevo Gasto", expanded=False):
                     st.error(f"Error: {e}")
             else:
                 st.warning("Ingresa concepto y monto.")
-
-# ============================================================
-# BOTÓN DE AUDITORÍA IA
-# ============================================================
-if st.sidebar.button("🚀 Ejecutar Auditoría IA"):
-    with st.spinner("Analizando con Gemini..."):
-        try:
-            estadisticas = run_audit()
-            if estadisticas["processed"] > 0:
-                st.sidebar.success(f"✅ {estadisticas['processed']} gastos analizados.")
-                st.cache_data.clear()
-            else:
-                st.sidebar.info("👍 Todo al día.")
-        except Exception as e:
-            st.sidebar.error(f"Error: {e}")
 
 # ============================================================
 # TÍTULO PRINCIPAL
@@ -353,7 +330,6 @@ if not df.empty:
     # ============================================================
     st.subheader("💰 Presupuesto por Categoría")
     
-    # Presupuestos por defecto (el usuario puede personalizar)
     PRESUPUESTOS_DEFAULT = {
         "Comida": 800000,
         "Transporte": 300000,
@@ -367,17 +343,14 @@ if not df.empty:
     }
     
     if 'Categoria' in df_filtrado.columns:
-        # Calcular gasto por categoría
         gasto_por_categoria = df_filtrado.groupby('Categoria')['MontoConvertido'].sum()
         
-        # Mostrar barras de progreso
         cols = st.columns(3)
         for idx, (categoria, presupuesto) in enumerate(PRESUPUESTOS_DEFAULT.items()):
             gasto_actual = gasto_por_categoria.get(categoria, 0)
             porcentaje = min((gasto_actual / presupuesto) * 100, 100) if presupuesto > 0 else 0
             
             with cols[idx % 3]:
-                # Color según porcentaje
                 if porcentaje >= 90:
                     color = "🔴"
                 elif porcentaje >= 70:
@@ -453,7 +426,6 @@ if not df.empty:
         except:
             return [''] * len(fila)
     
-    # Columnas a mostrar
     columnas_mostrar = ['Fecha', 'Concepto', 'Monto', 'Divisa', 'MontoConvertido', 
                         'Categoria', 'MedioPago', 'Score', 'Justificacion']
     columnas_existentes = [c for c in columnas_mostrar if c in df_filtrado.columns]
