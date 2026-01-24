@@ -254,10 +254,10 @@ def obtener_secreto(nombre, default=None):
 # ============================================================
 # CONEXIÓN A GOOGLE SHEETS (para Streamlit Cloud)
 # ============================================================
-def connect_sheets(target_sheet=0):
+def connect_sheets():
     """
     Conecta con Google Sheets usando credenciales disponibles.
-    target_sheet: Índice (0) o Nombre de la pestaña ("Ingresos", "Deudas")
+    Soporta: archivo local, variable de entorno, y st.secrets
     """
     GOOGLE_CREDENTIALS_FILE = "credentials.json"
     GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
@@ -293,16 +293,9 @@ def connect_sheets(target_sheet=0):
     
     try:
         sh = gc.open(GOOGLE_SHEET_NAME)
-        if target_sheet == 0:
-            return sh.sheet1
-        else:
-            return sh.worksheet(target_sheet)
-    except gspread.exceptions.WorksheetNotFound:
-        # Fallback si no encuentra la hoja específica, intenta crearla o devolver sheet1
-        st.error(f"No se encontró la pestaña '{target_sheet}'. Asegúrate de ejecutar init_finance_sheets.py")
-        return sh.sheet1
+        return sh.sheet1 
     except gspread.exceptions.SpreadsheetNotFound:
-        raise ValueError(f"No se encontró la hoja de cálculo: {GOOGLE_SHEET_NAME}")
+        raise ValueError(f"No se encontró la hoja: {GOOGLE_SHEET_NAME}")
 
 # ============================================================
 # SISTEMA DE AUTENTICACIÓN
@@ -384,286 +377,9 @@ col_header, col_logout = st.sidebar.columns([4, 1])
 with col_header:
     st.markdown("**⚙️ Panel**")
 with col_logout:
-    if st.button("🚪", help="Cerrar sesión"):
+    if st.button("�", help="Cerrar sesión"):
         st.session_state["authenticated"] = False
         st.rerun()
-
-# ============================================================
-# MENÚ DE NAVEGACIÓN PRINCIPAL (Fase 3)
-# ============================================================
-
-st.sidebar.markdown("---")
-
-# Selector de Módulo
-modulo = st.sidebar.radio(
-    "Navegación", 
-    ["📊 Balance", "💰 Ingresos", "💸 Egresos", "🤝 Deudas"],
-    index=2, # Default: Egresos
-    key="navegacion_principal"
-)
-
-st.sidebar.markdown("---")
-
-# ============================================================
-# FUNCIONES DE MÓDULOS (NUEVAS)
-# ============================================================
-
-def render_ingresos():
-    st.title("💰 Gestión de Ingresos")
-    
-    # --- Sidebar: Registrar Ingreso ---
-    with st.sidebar.expander("➕ Registrar Ingreso", expanded=True):
-        with st.form("form_ingresos"):
-            fecha = st.date_input("Fecha", key="ing_fecha")
-            concepto = st.text_input("Concepto", placeholder="Ej: Nómina Enero")
-            
-            c1, c2 = st.columns([1, 2])
-            divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], key="ing_divisa")
-            monto = c2.number_input("Monto", min_value=0.0, step=10000.0, key="ing_monto")
-            
-            fuente = st.selectbox("Fuente", ["Nómina", "Negocio", "Inversión", "Regalo", "Otros"])
-            recurrencia = st.selectbox("Frecuencia", ["Único", "Mensual", "Quincenal", "Anual"], index=1)
-            comentario = st.text_area("Notas (Opcional)", height=2)
-            
-            if st.form_submit_button("💾 Guardar Ingreso", use_container_width=True):
-                if monto > 0 and concepto:
-                    try:
-                        sh = connect_sheets("Ingresos")
-                        sh.append_row([
-                            str(fecha), concepto, monto, divisa, fuente, recurrencia, comentario
-                        ])
-                        st.toast("✅ ¡Ingreso registrado exitosamente!")
-                        st.cache_data.clear() # Limpiar caché para refrescar tabla
-                        time.sleep(1)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error guardando: {e}")
-                else:
-                    st.warning("⚠️ Completa concepto y monto.")
-
-    # --- Main: Ver Datos ---
-    try:
-        # Cargar datos sin cache por ahora para reflejar cambios inmediatos o usar cache con TTL corto
-        # Idealmente usaríamos una función dedicada cacheada
-        sh = connect_sheets("Ingresos")
-        records = sh.get_all_records()
-        
-        if records:
-            df = pd.DataFrame(records)
-            
-            # KPI Rápido (Sumatoria simple por ahora)
-            col_kpi1, col_kpi2 = st.columns(2)
-            
-            with col_kpi1:
-                total_cop = df[df['Divisa'] == 'COP']['Monto'].sum()
-                st.metric("Total Ingresos (COP)", f"${total_cop:,.0f}")
-                
-            with col_kpi2:
-                # Filtrar mes actual
-                df['Fecha'] = pd.to_datetime(df['Fecha'])
-                hoy = datetime.now()
-                mes_actual = df[
-                    (df['Fecha'].dt.month == hoy.month) & 
-                    (df['Fecha'].dt.year == hoy.year)
-                ]
-                total_mes_cop = mes_actual[mes_actual['Divisa'] == 'COP']['Monto'].sum()
-                st.metric(f"Ingresos {hoy.strftime('%B')}", f"${total_mes_cop:,.0f}")
-
-            st.subheader("Historial de Ingresos")
-            st.dataframe(
-                df.style.format({"Monto": "${:,.2f}"}), 
-                use_container_width=True,
-                column_config={
-                    "Fecha": st.column_config.DateColumn("Fecha", format="YYYY-MM-DD"),
-                }
-            )
-        else:
-            st.info("ℹ️ No hay ingresos registrados. ¡Comienza agregando uno en el panel lateral!")
-            
-    except Exception as e:
-        st.error(f"Error cargando hoja de Ingresos: {e}")
-def render_deudas():
-    st.title("🤝 Control de Deudas")
-    
-    # --- Sidebar: Formulario ---
-    st.sidebar.markdown("### Nueva Obligación")
-    tipo_operacion = st.sidebar.selectbox("Tipo", ["📥 Me Deben (Presté dinero)", "📤 Yo Debo (Pedí dinero)"])
-    
-    with st.sidebar.form("form_deudas_nuevo"):
-        persona = st.text_input("Persona / Entidad", placeholder="¿Quién?")
-        concepto = st.text_input("Concepto", placeholder="¿Por qué?")
-        
-        c1, c2 = st.columns([1, 2])
-        divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], key="dd_div")
-        monto = c2.number_input("Monto Original", min_value=0.0, step=10000.0)
-        
-        fecha_limite = st.date_input("Fecha Límite de Pago")
-        comentario = st.text_area("Notas", height=2)
-        alerta = st.checkbox("🔔 Alerta de Vencimiento", value=True)
-        
-        if st.form_submit_button("💾 Guardar Registro", use_container_width=True):
-            if persona and monto > 0:
-                try:
-                    tipo_db = "ME_DEBEN" if "Me Deben" in tipo_operacion else "YO_DEBO"
-                    # Generar ID único basado en timestamp
-                    id_unico = f"{tipo_db[:2]}_{int(pd.Timestamp.now().timestamp())}"
-                    
-                    sh = connect_sheets("Deudas")
-                    # Orden: ID, FechaCreacion, Tipo, Persona, Concepto, MontoOriginal, Divisa, MontoPagado, Estado, FechaLimite, Comentario, Alerta
-                    sh.append_row([
-                        id_unico, 
-                        str(datetime.now().date()), 
-                        tipo_db, 
-                        persona, 
-                        concepto, 
-                        monto, 
-                        divisa, 
-                        0, # Monto Pagado inicial
-                        "PENDIENTE", 
-                        str(fecha_limite),
-                        comentario,
-                        "SÍ" if alerta else "NO"
-                    ])
-                    st.toast(f"✅ Registrado: {tipo_operacion}")
-                    st.cache_data.clear()
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            else:
-                st.warning("Completa quién y cuánto.")
-
-    # --- Dashboard ---
-    try:
-        sh = connect_sheets("Deudas")
-        records = sh.get_all_records()
-        
-        if records:
-            df = pd.DataFrame(records)
-            
-            # --- KPIs ---
-            col1, col2 = st.columns(2)
-            
-            # TODO: Convertir divisas en futuro. Por ahora suma en COP o crudo.
-            activos = df[(df['Tipo'] == 'ME_DEBEN') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum()
-            pasivos = df[(df['Tipo'] == 'YO_DEBO') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum()
-             
-            with col1:
-                st.metric("🟢 Me Deben (Activos)", f"${activos:,.0f}", delta="Dinero en la calle")
-            with col2:
-                st.metric("🔴 Yo Debo (Pasivos)", f"${pasivos:,.0f}", delta="-Obligaciones", delta_color="inverse")
-                
-            st.divider()
-            
-            # --- Tablas Detalladas ---
-            tab_activos, tab_pasivos = st.tabs(["📥 Me Deben", "📤 Yo Debo"])
-            
-            with tab_activos:
-                df_activos = df[df['Tipo'] == 'ME_DEBEN']
-                if not df_activos.empty:
-                    st.dataframe(
-                        df_activos[['Persona', 'MontoOriginal', 'FechaLimite', 'Estado', 'Concepto']],
-                        use_container_width=True
-                    )
-                else:
-                    st.info("Nadie te debe dinero. ¡Qué suerte!")
-                    
-            with tab_pasivos:
-                df_pasivos = df[df['Tipo'] == 'YO_DEBO']
-                if not df_pasivos.empty:
-                    st.dataframe(
-                        df_pasivos[['Persona', 'MontoOriginal', 'FechaLimite', 'Estado', 'Concepto']],
-                        use_container_width=True
-                    )
-                else:
-                    st.success("¡Estás libre de deudas!")
-                    
-        else:
-            st.info("ℹ️ No hay deudas registradas.")
-            
-    except Exception as e:
-        st.error(f"Error cargando Deudas: {e}")
-    
-def render_balance():
-    st.title("📊 Balance Global")
-    
-    col_main, col_chart = st.columns([1, 1])
-    
-    try:
-        # Cargar datos
-        sh_gastos = connect_sheets(0) # Egresos (default)
-        sh_ingresos = connect_sheets("Ingresos")
-        
-        df_gastos = pd.DataFrame(sh_gastos.get_all_records())
-        df_ingresos = pd.DataFrame(sh_ingresos.get_all_records())
-        
-        # Calcular Totales (Simplificado: Sin conversión de divisa avanzada por ahora)
-        # TODO: Implementar conversión real usando la herramienta de divisas
-        
-        total_ingresos = 0
-        if not df_ingresos.empty:
-            # Sumar solo columnas numéricas de 'Monto'
-            # Filtrar por COP idealmente, o sumar crudo si el usuario maneja una sola moneda principal
-            # Asumimos mezcla de monedas se suma directo por ahora (v1)
-            total_ingresos = pd.to_numeric(df_ingresos['Monto'], errors='coerce').sum()
-            
-        total_gastos = 0
-        if not df_gastos.empty:
-            total_gastos = pd.to_numeric(df_gastos['Monto'], errors='coerce').sum()
-            
-        ahorro_neto = total_ingresos - total_gastos
-        
-        # KPIs Principales
-        with col_main:
-            st.subheader("Resumen Financiero")
-            st.metric("💰 Ingresos Totales", f"${total_ingresos:,.0f}")
-            st.metric("💸 Egresos Totales", f"${total_gastos:,.0f}")
-            st.divider()
-            st.metric("🐷 Ahorro Neto", f"${ahorro_neto:,.0f}", 
-                     delta="Superávit" if ahorro_neto >= 0 else "Déficit",
-                     delta_color="normal" if ahorro_neto >= 0 else "inverse")
-                     
-        # Gráficos
-        with col_chart:
-            st.subheader("Flujo de Caja")
-            if total_ingresos > 0 or total_gastos > 0:
-                chart_data = pd.DataFrame({
-                    "Categoría": ["Ingresos", "Egresos"],
-                    "Monto": [total_ingresos, total_gastos]
-                })
-                
-                # Gráfico de barras simple
-                st.bar_chart(chart_data.set_index("Categoría"), color=["#22c55e", "#ef4444"]) # Verde y Rojo (si soporta lista)
-                # Streamlit bar_chart a veces ignora color list si no es dataframe column.
-                # Pero la visualización por defecto está bien.
-            else:
-                st.info("Sin datos suficientes para graficar.")
-                
-        # Tabla combinada reciente (Opcional)
-        st.divider()
-        st.subheader("Últimos Movimientos")
-        # Aquí podríamos unir los dataframes por fecha y mostrar los últimos 10
-        
-    except Exception as e:
-        st.error(f"Error calculando balance: {e}")
-
-# ============================================================
-# ENRUTAMIENTO
-# ============================================================
-if modulo == "📊 Balance":
-    render_balance()
-    st.stop() # Detener ejecución para no mostrar Egresos
-    
-elif modulo == "💰 Ingresos":
-    render_ingresos()
-    st.stop()
-    
-elif modulo == "🤝 Deudas":
-    render_deudas()
-    st.stop()
-    
-# Si llegamos aquí, estamos en "💸 Egresos" (La lógica original continúa abajo)
-st.sidebar.markdown("👇 **Panel de Egresos**")
 
 # Botón de Auditoría IA
 if st.sidebar.button("🚀 Ejecutar Auditoría IA", use_container_width=True):
@@ -745,7 +461,72 @@ with st.sidebar.expander("➕ Registrar Nuevo Gasto", expanded=False):
             else:
                 st.warning("Completa concepto y monto.")
 
-
+# ============================================================
+# SECCIÓN DE DEUDAS
+# ============================================================
+st.sidebar.divider()
+with st.sidebar.expander("💸 Gestión de Deudas", expanded=False):
+    
+    # Tabs para Me Deben / Debo
+    tab_me_deben, tab_yo_debo = st.tabs(["📥 Me Deben", "📤 Yo Debo"])
+    
+    with tab_me_deben:
+        st.markdown("**Registrar quién te debe:**")
+        with st.form("form_me_deben"):
+            deudor = st.text_input("👤 Nombre de quien te debe")
+            monto_deuda = st.number_input("💵 Monto", min_value=0.0, step=1000.0, key="monto_deben")
+            divisa_deuda = st.selectbox("Divisa", ["COP", "USD", "EUR"], key="divisa_deben")
+            concepto_deuda = st.text_input("📝 Por qué concepto", key="concepto_deben")
+            fecha_prestamo = st.date_input("📅 Fecha del préstamo", key="fecha_deben")
+            fecha_limite = st.date_input("⏰ Fecha límite de pago", key="limite_deben")
+            recordar = st.checkbox("🔔 Crear recordatorio", value=True, key="recordar_deben")
+            
+            if st.form_submit_button("💾 Guardar Deuda", use_container_width=True):
+                if deudor and monto_deuda > 0:
+                    try:
+                        worksheet = connect_sheets()
+                        # Agregar como fila especial con tipo "ME_DEBEN"
+                        nueva_fila = [
+                            str(fecha_prestamo), f"DEUDA: {deudor} me debe", monto_deuda, 
+                            divisa_deuda, "Deuda - Me Deben", concepto_deuda, "Préstamo", 
+                            deudor, "Único" if not recordar else "Mensual"
+                        ]
+                        worksheet.append_row(nueva_fila)
+                        st.success(f"✅ Registrado: {deudor} te debe {monto_deuda} {divisa_deuda}")
+                        st.cache_data.clear()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                else:
+                    st.warning("Completa nombre y monto.")
+    
+    with tab_yo_debo:
+        st.markdown("**Registrar a quién le debes:**")
+        with st.form("form_yo_debo"):
+            acreedor = st.text_input("👤 Nombre de a quién le debes")
+            monto_debo = st.number_input("💵 Monto", min_value=0.0, step=1000.0, key="monto_debo")
+            divisa_debo = st.selectbox("Divisa", ["COP", "USD", "EUR"], key="divisa_debo")
+            concepto_debo = st.text_input("📝 Por qué concepto", key="concepto_debo")
+            fecha_deuda = st.date_input("📅 Fecha de la deuda", key="fecha_debo")
+            fecha_pago = st.date_input("⏰ Fecha límite de pago", key="pago_debo")
+            recordar_debo = st.checkbox("🔔 Crear recordatorio", value=True, key="recordar_debo")
+            
+            if st.form_submit_button("💾 Guardar Deuda", use_container_width=True):
+                if acreedor and monto_debo > 0:
+                    try:
+                        worksheet = connect_sheets()
+                        # Agregar como fila especial con tipo "YO_DEBO"
+                        nueva_fila = [
+                            str(fecha_deuda), f"DEUDA: Debo a {acreedor}", monto_debo, 
+                            divisa_debo, "Deuda - Yo Debo", concepto_debo, "Préstamo", 
+                            acreedor, "Único" if not recordar_debo else "Mensual"
+                        ]
+                        worksheet.append_row(nueva_fila)
+                        st.success(f"✅ Registrado: Debes {monto_debo} {divisa_debo} a {acreedor}")
+                        st.cache_data.clear()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                else:
+                    st.warning("Completa nombre y monto.")
 
 # ============================================================
 # CARGA DE DATOS
