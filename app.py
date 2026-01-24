@@ -441,36 +441,104 @@ if not df.empty and 'Recurrencia' in df.columns and 'Fecha' in df.columns:
         try:
             from dateutil.relativedelta import relativedelta
             
+            pagos_hoy = []
             pagos_proximos = []
             hoy = datetime.now().date()
-            proximos_7_dias = hoy + timedelta(days=7)
+            en_3_dias = hoy + timedelta(days=3)
             
             for _, row in df_recurrentes.iterrows():
                 try:
                     fecha_orig = pd.to_datetime(row['Fecha'])
                     proxima = calcular_proxima_fecha(fecha_orig, row['Recurrencia'])
                     
-                    if proxima and hoy <= proxima.date() <= proximos_7_dias:
-                        pagos_proximos.append({
+                    if proxima:
+                        fecha_pago = proxima.date()
+                        pago_info = {
                             'concepto': row.get('Concepto', 'Pago'),
                             'monto': row.get('Monto', 0),
                             'divisa': row.get('Divisa', 'COP'),
-                            'fecha': proxima.strftime('%d/%m'),
-                            'recurrencia': row['Recurrencia']
-                        })
+                            'fecha': proxima.strftime('%d/%m/%Y'),
+                            'recurrencia': row['Recurrencia'],
+                            'dias_restantes': (fecha_pago - hoy).days
+                        }
+                        
+                        if fecha_pago == hoy:
+                            pagos_hoy.append(pago_info)
+                        elif hoy < fecha_pago <= en_3_dias:
+                            pagos_proximos.append(pago_info)
                 except:
                     continue
             
-            # Mostrar notificaciones
-            if pagos_proximos:
-                st.warning(f"🔔 **{len(pagos_proximos)} pago(s) próximo(s) esta semana:**")
-                for pago in pagos_proximos[:5]:  # Máximo 5 notificaciones
+            # CSS para animación llamativa
+            st.markdown("""
+            <style>
+            @keyframes pulse {
+                0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+                70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            }
+            .pago-urgente {
+                animation: pulse 1.5s infinite;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            # PAGOS DE HOY - MUY LLAMATIVO
+            if pagos_hoy:
+                st.markdown(f"""
+                <div class="pago-urgente" style="
+                    background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+                    border: 2px solid #ef4444;
+                    border-radius: 12px;
+                    padding: 20px;
+                    margin-bottom: 16px;
+                    text-align: center;
+                ">
+                    <h3 style="color: #fca5a5; margin: 0 0 10px 0;">⚠️ ¡PAGO HOY! ⚠️</h3>
+                    <p style="color: #ffffff; font-size: 1.1rem; margin: 0;">
+                        Tienes <strong>{len(pagos_hoy)}</strong> pago(s) programado(s) para HOY
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                for pago in pagos_hoy:
                     st.markdown(f"""
-                    <div style="background-color: #422006; border-left: 3px solid #f59e0b; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-                        <strong>{pago['concepto']}</strong> - {formatear_moneda(pago['monto'], pago['divisa'])}
-                        <br><small style="color: #fcd34d;">📅 {pago['fecha']} ({pago['recurrencia']})</small>
+                    <div style="
+                        background-color: #450a0a;
+                        border-left: 4px solid #ef4444;
+                        padding: 14px;
+                        border-radius: 8px;
+                        margin-bottom: 10px;
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong style="color: #ffffff; font-size: 1.1rem;">🔴 {pago['concepto']}</strong>
+                            <span style="color: #fca5a5; font-size: 1.2rem; font-weight: bold;">
+                                {formatear_moneda(pago['monto'], pago['divisa'])}
+                            </span>
+                        </div>
+                        <small style="color: #f87171;">📅 Vence HOY - {pago['recurrencia']}</small>
                     </div>
                     """, unsafe_allow_html=True)
+            
+            # PAGOS EN 3 DÍAS - Advertencia
+            if pagos_proximos:
+                st.warning(f"🔔 **{len(pagos_proximos)} pago(s) en los próximos 3 días:**")
+                for pago in pagos_proximos[:5]:
+                    dias = pago['dias_restantes']
+                    st.markdown(f"""
+                    <div style="
+                        background-color: #422006;
+                        border-left: 3px solid #f59e0b;
+                        padding: 12px;
+                        border-radius: 6px;
+                        margin-bottom: 8px;
+                    ">
+                        <strong style="color: #ffffff;">{pago['concepto']}</strong> - 
+                        <span style="color: #fcd34d;">{formatear_moneda(pago['monto'], pago['divisa'])}</span>
+                        <br><small style="color: #fbbf24;">📅 En {dias} día(s) - {pago['fecha']} ({pago['recurrencia']})</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
         except ImportError:
             pass  # dateutil no instalado
 
