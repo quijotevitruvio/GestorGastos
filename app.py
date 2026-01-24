@@ -593,33 +593,89 @@ if not df.empty:
             st.info("No hay fechas válidas para mostrar tendencia.")
     
     # ============================================================
-    # TABLA DE DETALLE
+    # TABLA DE DETALLE - Estilo mejorado
     # ============================================================
     st.subheader("📋 Detalle de Gastos")
     
-    def colorear_filas(fila):
-        try:
-            valor = float(fila['ScoreNum'])
-            if valor >= 4: 
-                return ['background-color: #d4edda'] * len(fila)
-            if valor <= 2: 
-                return ['background-color: #f8d7da'] * len(fila)
-            return [''] * len(fila)
-        except:
-            return [''] * len(fila)
+    # Selector de vista
+    vista = st.radio("Vista:", ["📊 Tabla", "🃏 Tarjetas"], horizontal=True, label_visibility="collapsed")
     
-    columnas_mostrar = ['Fecha', 'Concepto', 'Monto', 'Divisa', 'MontoConvertido', 
+    columnas_mostrar = ['Fecha', 'Concepto', 'Monto', 'Divisa', 
                         'Categoria', 'MedioPago', 'Score', 'Justificacion']
     columnas_existentes = [c for c in columnas_mostrar if c in df_filtrado.columns]
     
-    st.dataframe(
-        df_filtrado[columnas_existentes].style.apply(colorear_filas, axis=1),
-        use_container_width=True
-    )
+    if vista == "📊 Tabla":
+        # Vista de tabla mejorada con colores para tema oscuro
+        def colorear_filas(fila):
+            try:
+                valor = float(fila.get('Score', 0))
+                if valor >= 4: 
+                    return ['background-color: #166534; color: #ffffff'] * len(fila)  # Verde oscuro
+                if valor <= 2: 
+                    return ['background-color: #991b1b; color: #ffffff'] * len(fila)  # Rojo oscuro
+                return ['background-color: #1f2937; color: #ffffff'] * len(fila)  # Gris oscuro
+            except:
+                return ['background-color: #1f2937; color: #ffffff'] * len(fila)
+        
+        st.dataframe(
+            df_filtrado[columnas_existentes].style.apply(colorear_filas, axis=1),
+            use_container_width=True,
+            height=400
+        )
+    else:
+        # Vista de tarjetas
+        for idx, row in df_filtrado.iterrows():
+            score = float(row.get('Score', 0)) if row.get('Score') else 0
+            
+            # Color según score
+            if score >= 4:
+                color_borde = "#22c55e"  # Verde
+                emoji_score = "✅"
+            elif score <= 2:
+                color_borde = "#ef4444"  # Rojo
+                emoji_score = "⚠️"
+            else:
+                color_borde = "#f59e0b"  # Amarillo
+                emoji_score = "➖"
+            
+            # Card HTML
+            st.markdown(f"""
+            <div style="
+                background-color: #1f2937;
+                border-left: 4px solid {color_borde};
+                border-radius: 8px;
+                padding: 16px;
+                margin-bottom: 12px;
+            ">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 1.1rem; font-weight: 600; color: #ffffff;">
+                        {row.get('Concepto', 'Sin concepto')}
+                    </span>
+                    <span style="font-size: 1.2rem; font-weight: 700; color: {color_borde};">
+                        {formatear_moneda(row.get('Monto', 0), row.get('Divisa', 'COP'))}
+                    </span>
+                </div>
+                <div style="display: flex; gap: 16px; flex-wrap: wrap; color: #9ca3af; font-size: 0.85rem;">
+                    <span>📅 {row.get('Fecha', '-')}</span>
+                    <span>📁 {row.get('Categoria', '-')}</span>
+                    <span>💳 {row.get('MedioPago', '-')}</span>
+                    <span>{emoji_score} Score: {score:.0f}/5</span>
+                </div>
+                <div style="margin-top: 10px; color: #d1d5db; font-size: 0.9rem; font-style: italic;">
+                    💬 {row.get('Justificacion', 'Sin análisis aún')}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Limitar a 20 tarjetas para rendimiento
+            if idx >= 19:
+                st.info(f"Mostrando 20 de {len(df_filtrado)} registros. Usa filtros para ver más.")
+                break
     
     # ============================================================
     # BOTÓN DE EXPORTAR
     # ============================================================
+    st.divider()
     col_export1, col_export2, col_export3 = st.columns([2, 1, 2])
     with col_export2:
         csv = df_filtrado[columnas_existentes].to_csv(index=False).encode('utf-8')
