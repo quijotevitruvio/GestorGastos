@@ -153,6 +153,20 @@ if st.sidebar.button("🔒 Cerrar Sesión"):
     st.session_state["authenticated"] = False
     st.rerun()
 
+# Botón de Auditoría IA
+if st.sidebar.button("🚀 Ejecutar Auditoría IA"):
+    with st.spinner("Analizando con Gemini..."):
+        try:
+            from auditor import run_audit
+            estadisticas = run_audit()
+            if estadisticas["processed"] > 0:
+                st.sidebar.success(f"✅ {estadisticas['processed']} gastos analizados.")
+                st.cache_data.clear()
+            else:
+                st.sidebar.info("👍 Todo al día. No hay gastos pendientes.")
+        except Exception as e:
+            st.sidebar.error(f"Error: {e}")
+
 st.sidebar.divider()
 
 # ============================================================
