@@ -91,7 +91,7 @@ st.markdown("""
        COMPONENTES TIPO "WIDGET"
        ============================================ */
        
-    /* Métricas KPI - Estilo "Glass Card" */
+    /* Métricas KPI - Estilo "Glass Card" Uniforme */
     [data-testid="stMetric"] {
         background: linear-gradient(145deg, var(--card-bg), #0f0f0f) !important;
         border: 1px solid var(--border-subtle) !important;
@@ -99,6 +99,12 @@ st.markdown("""
         padding: 24px !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
         transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+        
+        /* Uniformidad de tamaño */
+        min-height: 160px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
     }
     
     [data-testid="stMetric"]:hover {
