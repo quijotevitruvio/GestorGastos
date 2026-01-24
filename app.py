@@ -35,14 +35,155 @@ from currency import convertir_columna, formatear_moneda, obtener_tasas  # Conve
 load_dotenv()
 st.set_page_config(page_title="Ge$torGasto$", page_icon="💰", layout="wide")
 
-# CSS para mejorar la apariencia
+# CSS para tema oscuro y diseño móvil responsive
 st.markdown("""
 <style>
-    .stMetric {
-        background-color: #f8f9fa;
-        padding: 15px;
+    /* ============================================
+       TEMA OSCURO - Mobile First
+       ============================================ */
+    
+    /* Fondo y texto base */
+    .stApp {
+        background: linear-gradient(135deg, #0e1117 0%, #1a1f2e 100%);
+    }
+    
+    /* Métricas KPI */
+    [data-testid="stMetric"] {
+        background: linear-gradient(145deg, #1e2536 0%, #252d3d 100%);
+        padding: 20px;
+        border-radius: 16px;
+        border: 1px solid #2d3748;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    [data-testid="stMetricValue"] {
+        color: #00d4aa !important;
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: #a0aec0 !important;
+        font-size: 0.9rem !important;
+    }
+    
+    /* Botones */
+    .stButton > button {
+        background: linear-gradient(135deg, #00d4aa 0%, #00b894 100%);
+        color: #0e1117 !important;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 24px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 212, 170, 0.4);
+    }
+    
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #1a1f2e 0%, #0e1117 100%);
+        border-right: 1px solid #2d3748;
+    }
+    
+    [data-testid="stSidebar"] .stButton > button {
+        margin-bottom: 8px;
+    }
+    
+    /* Inputs y selects */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div {
+        background-color: #1e2536 !important;
+        border: 1px solid #2d3748 !important;
+        border-radius: 10px !important;
+        color: #fafafa !important;
+    }
+    
+    /* Expanders */
+    .streamlit-expanderHeader {
+        background-color: #1e2536 !important;
+        border-radius: 10px !important;
+        color: #00d4aa !important;
+    }
+    
+    /* DataFrames/Tablas */
+    .stDataFrame {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    /* Progress bars */
+    .stProgress > div > div {
+        background: linear-gradient(90deg, #00d4aa, #00b894) !important;
         border-radius: 10px;
-        border: 1px solid #dee2e6;
+    }
+    
+    /* Títulos */
+    h1, h2, h3 {
+        color: #fafafa !important;
+    }
+    
+    h1 {
+        background: linear-gradient(135deg, #00d4aa, #00b894);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800 !important;
+    }
+    
+    /* Alertas/Info */
+    .stAlert {
+        background-color: #1e2536 !important;
+        border-radius: 12px !important;
+        border-left: 4px solid #00d4aa !important;
+    }
+    
+    /* ============================================
+       RESPONSIVE - Mobile
+       ============================================ */
+    
+    @media (max-width: 768px) {
+        /* Métricas más pequeñas en móvil */
+        [data-testid="stMetric"] {
+            padding: 12px;
+        }
+        
+        [data-testid="stMetricValue"] {
+            font-size: 1.4rem !important;
+        }
+        
+        /* Columnas apiladas en móvil */
+        [data-testid="column"] {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+        }
+        
+        /* Sidebar ocupa menos espacio */
+        [data-testid="stSidebar"] {
+            min-width: 260px !important;
+        }
+        
+        /* Botones más grandes para touch */
+        .stButton > button {
+            padding: 16px 20px;
+            font-size: 1rem;
+        }
+        
+        /* Título más pequeño */
+        h1 {
+            font-size: 1.5rem !important;
+        }
+    }
+    
+    /* Tablets */
+    @media (min-width: 769px) and (max-width: 1024px) {
+        [data-testid="stMetricValue"] {
+            font-size: 1.6rem !important;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
