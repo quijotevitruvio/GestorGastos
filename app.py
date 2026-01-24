@@ -820,8 +820,8 @@ if not df.empty:
     # ============================================================
     st.subheader("📋 Detalle de Gastos")
     
-    # Selector de vista
-    vista = st.radio("Vista:", ["📊 Tabla", "🃏 Tarjetas"], horizontal=True, label_visibility="collapsed")
+    # Selector de vista - Tarjetas por defecto
+    vista = st.radio("Vista:", ["🃏 Tarjetas", "📊 Tabla"], horizontal=True, label_visibility="collapsed")
     
     columnas_mostrar = ['Fecha', 'Concepto', 'Monto', 'Divisa', 
                         'Categoria', 'MedioPago', 'Score', 'Justificacion']
