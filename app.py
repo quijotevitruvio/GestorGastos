@@ -365,7 +365,7 @@ with st.sidebar.expander("➕ Registrar Nuevo Gasto", expanded=False):
         ], help="¿Se repite este gasto?")
         
         medio_pago = st.selectbox("💳 Medio de Pago", [
-            "Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "Transferencia/Nequi"
+            "Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "Transferencia"
         ])
         
         lugar = st.text_input("📍 Lugar (Opcional)")
