@@ -303,17 +303,30 @@ if not verificar_login():
     st.stop()
 
 # ============================================================
+# TÍTULO PRINCIPAL - Centrado y pequeño
+# ============================================================
+st.markdown("""
+<div style="text-align: center; padding: 10px 0 20px 0;">
+    <h2 style="color: #4ade80; margin: 0;">💰 Ge$torGasto$</h2>
+    <p style="color: #9ca3af; font-size: 0.85rem; margin: 5px 0 0 0;">Auditor Financiero con IA</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================================
 # SIDEBAR: CONTROLES PRINCIPALES
 # ============================================================
-st.sidebar.header("⚙️ Panel de Control")
 
-# Botón cerrar sesión
-if st.sidebar.button("🔒 Cerrar Sesión"):
-    st.session_state["authenticated"] = False
-    st.rerun()
+# Header con icono de logout
+col_header, col_logout = st.sidebar.columns([4, 1])
+with col_header:
+    st.markdown("**⚙️ Panel**")
+with col_logout:
+    if st.button("�", help="Cerrar sesión"):
+        st.session_state["authenticated"] = False
+        st.rerun()
 
 # Botón de Auditoría IA
-if st.sidebar.button("🚀 Ejecutar Auditoría IA"):
+if st.sidebar.button("🚀 Ejecutar Auditoría IA", use_container_width=True):
     with st.spinner("Analizando con Gemini..."):
         try:
             from auditor import run_audit
@@ -322,7 +335,7 @@ if st.sidebar.button("🚀 Ejecutar Auditoría IA"):
                 st.sidebar.success(f"✅ {estadisticas['processed']} gastos analizados.")
                 st.cache_data.clear()
             else:
-                st.sidebar.info("👍 Todo al día. No hay gastos pendientes.")
+                st.sidebar.info("👍 Todo al día.")
         except Exception as e:
             st.sidebar.error(f"Error: {e}")
 
@@ -333,42 +346,46 @@ st.sidebar.divider()
 # ============================================================
 with st.sidebar.expander("➕ Registrar Nuevo Gasto", expanded=False):
     with st.form("formulario_gasto"):
-        fecha = st.date_input("Fecha")
-        concepto = st.text_input("Concepto")
+        fecha = st.date_input("📅 Fecha")
+        concepto = st.text_input("📝 Concepto")
         
         col1, col2 = st.columns([1, 2])
-        divisa = col1.selectbox("Divisa", ["COP", "USD", "EUR"])
+        divisa = col1.selectbox("💵", ["COP", "USD", "EUR"], label_visibility="collapsed")
         monto = col2.number_input("Monto", min_value=0.0, step=100.0 if divisa == "COP" else 1.0)
         
-        categoria = st.selectbox("Categoría", [
+        categoria = st.selectbox("📁 Categoría", [
             "Comida", "Transporte", "Ocio", "Servicios", 
             "Salud", "Ropa", "Educación", "Ahorro", "Otro"
         ])
-        lugar = st.text_input("Lugar (Opcional)")
-        medio_pago = st.selectbox("Medio de Pago", [
+        
+        # NUEVO: Recurrencia del gasto
+        recurrencia = st.selectbox("🔄 Frecuencia", [
+            "Único", "Semanal", "Quincenal", "Mensual", "Bimestral", 
+            "Trimestral", "Semestral", "Anual"
+        ], help="¿Se repite este gasto?")
+        
+        medio_pago = st.selectbox("💳 Medio de Pago", [
             "Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "Transferencia/Nequi"
         ])
-        banco = st.text_input("Banco (Opcional)")
         
-        enviado = st.form_submit_button("💾 Guardar Gasto")
+        lugar = st.text_input("📍 Lugar (Opcional)")
+        banco = st.text_input("🏦 Banco (Opcional)")
+        
+        enviado = st.form_submit_button("💾 Guardar", use_container_width=True)
         
         if enviado:
             if concepto and monto > 0:
                 try:
                     worksheet = connect_sheets()
-                    nueva_fila = [str(fecha), concepto, monto, divisa, categoria, lugar, medio_pago, banco]
+                    # Agregar recurrencia a los datos
+                    nueva_fila = [str(fecha), concepto, monto, divisa, categoria, lugar, medio_pago, banco, recurrencia]
                     worksheet.append_row(nueva_fila)
-                    st.success("¡Gasto guardado!")
+                    st.success("¡Guardado!")
                     st.cache_data.clear()
                 except Exception as e:
                     st.error(f"Error: {e}")
             else:
-                st.warning("Ingresa concepto y monto.")
-
-# ============================================================
-# TÍTULO PRINCIPAL
-# ============================================================
-st.title("💰 Ge$torGasto$ - Auditor Financiero IA")
+                st.warning("Completa concepto y monto.")
 
 # ============================================================
 # CARGA DE DATOS
@@ -385,6 +402,77 @@ def cargar_datos():
         return pd.DataFrame()
 
 df = cargar_datos()
+
+# ============================================================
+# NOTIFICACIONES DE PAGOS RECURRENTES
+# ============================================================
+def calcular_proxima_fecha(fecha_original, recurrencia):
+    """Calcula la próxima fecha de pago según la recurrencia."""
+    from dateutil.relativedelta import relativedelta
+    
+    intervalos = {
+        "Semanal": relativedelta(weeks=1),
+        "Quincenal": relativedelta(weeks=2),
+        "Mensual": relativedelta(months=1),
+        "Bimestral": relativedelta(months=2),
+        "Trimestral": relativedelta(months=3),
+        "Semestral": relativedelta(months=6),
+        "Anual": relativedelta(years=1)
+    }
+    
+    if recurrencia not in intervalos or recurrencia == "Único":
+        return None
+    
+    intervalo = intervalos[recurrencia]
+    proxima = fecha_original + intervalo
+    
+    # Avanzar hasta la próxima fecha futura
+    hoy = datetime.now().date()
+    while proxima.date() < hoy:
+        proxima += intervalo
+    
+    return proxima
+
+# Verificar pagos próximos (si hay columna Recurrencia)
+if not df.empty and 'Recurrencia' in df.columns and 'Fecha' in df.columns:
+    df_recurrentes = df[df['Recurrencia'].isin(['Semanal', 'Quincenal', 'Mensual', 'Bimestral', 'Trimestral', 'Semestral', 'Anual'])].copy()
+    
+    if not df_recurrentes.empty:
+        try:
+            from dateutil.relativedelta import relativedelta
+            
+            pagos_proximos = []
+            hoy = datetime.now().date()
+            proximos_7_dias = hoy + timedelta(days=7)
+            
+            for _, row in df_recurrentes.iterrows():
+                try:
+                    fecha_orig = pd.to_datetime(row['Fecha'])
+                    proxima = calcular_proxima_fecha(fecha_orig, row['Recurrencia'])
+                    
+                    if proxima and hoy <= proxima.date() <= proximos_7_dias:
+                        pagos_proximos.append({
+                            'concepto': row.get('Concepto', 'Pago'),
+                            'monto': row.get('Monto', 0),
+                            'divisa': row.get('Divisa', 'COP'),
+                            'fecha': proxima.strftime('%d/%m'),
+                            'recurrencia': row['Recurrencia']
+                        })
+                except:
+                    continue
+            
+            # Mostrar notificaciones
+            if pagos_proximos:
+                st.warning(f"🔔 **{len(pagos_proximos)} pago(s) próximo(s) esta semana:**")
+                for pago in pagos_proximos[:5]:  # Máximo 5 notificaciones
+                    st.markdown(f"""
+                    <div style="background-color: #422006; border-left: 3px solid #f59e0b; padding: 10px; border-radius: 6px; margin-bottom: 8px;">
+                        <strong>{pago['concepto']}</strong> - {formatear_moneda(pago['monto'], pago['divisa'])}
+                        <br><small style="color: #fcd34d;">📅 {pago['fecha']} ({pago['recurrencia']})</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+        except ImportError:
+            pass  # dateutil no instalado
 
 # ============================================================
 # VISUALIZACIÓN (Solo si hay datos)
