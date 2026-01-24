@@ -406,7 +406,7 @@ with st.sidebar.expander("➕ Registrar Nuevo Gasto", expanded=False):
         concepto = st.text_input("📝 Concepto")
         
         col1, col2 = st.columns([1, 2])
-        divisa = col1.selectbox("💵", ["COP", "USD", "EUR"], label_visibility="collapsed")
+        divisa = col1.selectbox("Divisa", ["COP", "USD", "EUR"])
         monto = col2.number_input("Monto", min_value=0.0, step=100.0 if divisa == "COP" else 1.0)
         
         categoria = st.selectbox("📁 Categoría", [
