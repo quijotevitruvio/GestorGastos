@@ -112,6 +112,26 @@ st.markdown("""
         box-shadow: 0 0 25px rgba(0, 212, 255, 0.5) !important;
     }
     
+    /* Ocultar tooltip "Press to submit form" */
+    .stButton > button::after,
+    .stFormSubmitButton > button::after,
+    [data-testid="stFormSubmitButton"] > button::after {
+        display: none !important;
+    }
+    
+    button[kind="formSubmit"]::before,
+    button[kind="formSubmit"]::after,
+    [data-testid="baseButton-secondary"]::after,
+    [data-testid="baseButton-primary"]::after {
+        display: none !important;
+        content: none !important;
+    }
+    
+    /* Ocultar tooltips en general */
+    [data-baseweb="tooltip"] {
+        display: none !important;
+    }
+    
     /* Inputs */
     input, textarea, select {
         background: var(--surface) !important;
