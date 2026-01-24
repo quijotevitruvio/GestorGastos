@@ -408,187 +408,188 @@ st.sidebar.markdown("---")
 # FUNCIONES DE MÓDULOS (NUEVAS)
 # ============================================================
 
+# ============================================================
+# MODALES FLOTANTES (Funciones Decoradas)
+# ============================================================
+@st.dialog("📝 Registrar Nuevo Ingreso")
+def dialog_ingreso():
+    with st.form("form_ingresos_modal"):
+        fecha = st.date_input("Fecha", key="ing_fecha")
+        concepto = st.text_input("Concepto", placeholder="Ej: Nómina")
+        
+        c1, c2 = st.columns(2)
+        divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], key="ing_divisa")
+        monto = c2.number_input("Monto", min_value=0.0, step=10000.0, key="ing_monto")
+        
+        fuente = st.selectbox("Fuente", ["Nómina", "Negocio", "Inversión", "Regalo", "Otros"])
+        recurrencia = st.selectbox("Frecuencia", ["Único", "Mensual", "Quincenal", "Anual"], index=1)
+        comentario = st.text_area("Notas", height=2)
+        
+        if st.form_submit_button("💾 Guardar Ingreso", use_container_width=True):
+            if monto > 0 and concepto:
+                try:
+                    sh = connect_sheets("Ingresos")
+                    sh.append_row([
+                        str(fecha), concepto, monto, divisa, fuente, recurrencia, comentario
+                    ])
+                    st.toast("✅ ¡Ingreso registrado exitosamente!")
+                    st.cache_data.clear() 
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error guardando: {e}")
+            else:
+                st.warning("Completa concepto y monto.")
+
 def render_ingresos():
     st.title("💰 Gestión de Ingresos")
     
-    # Layout Config: 3 parts content, 1 part form (Right Panel)
-    col_main, col_panel = st.columns([3, 1])
+    # Botón Flotante Principal
+    col_btn, _ = st.columns([1, 4])
+    if col_btn.button("➕ Nuevo Ingreso", use_container_width=True, type="primary"):
+        dialog_ingreso()
+
+    # --- Ver Datos (Full Width) ---
+    try:
+        sh = connect_sheets("Ingresos")
+        records = sh.get_all_records()
+        
+        if records:
+            df = pd.DataFrame(records)
+            
+            # KPI Rápido
+            k1, k2 = st.columns(2)
+            
+            with k1:
+                total_cop = df[df['Divisa'] == 'COP']['Monto'].sum()
+                st.metric("Total Ingresos (COP)", f"${total_cop:,.0f}")
+                
+            with k2:
+                df['Fecha'] = pd.to_datetime(df['Fecha'])
+                hoy = datetime.now()
+                mes_actual = df[
+                    (df['Fecha'].dt.month == hoy.month) & 
+                    (df['Fecha'].dt.year == hoy.year)
+                ]
+                total_mes_cop = mes_actual[mes_actual['Divisa'] == 'COP']['Monto'].sum()
+                st.metric(f"Ingresos {hoy.strftime('%B')}", f"${total_mes_cop:,.0f}")
+
+            st.subheader("Historial")
+            st.dataframe(
+                df.style.format({"Monto": "${:,.2f}"}), 
+                use_container_width=True,
+                height=400,
+                column_config={
+                    "Fecha": st.column_config.DateColumn("Fecha", format="YYYY-MM-DD"),
+                }
+            )
+        else:
+            st.info("ℹ️ No hay ingresos registrados. Pulsa el botón para agregar uno.")
+            
+    except Exception as e:
+        st.error(f"Error cargando hoja de Ingresos: {e}")
+@st.dialog("🤝 Registrar Deuda / Préstamo")
+def dialog_deuda():
+    tipo_operacion = st.selectbox("Tipo", ["📥 Me Deben", "📤 Yo Debo"], key="modal_deuda_tipo")
     
-    # --- Right Panel: Registrar Ingreso ---
-    with col_panel:
-        st.markdown("### 📝 Nuevo Ingreso")
-        with st.form("form_ingresos"):
-            fecha = st.date_input("Fecha", key="ing_fecha")
-            concepto = st.text_input("Concepto", placeholder="Ej: Nómina")
-            
-            c1, c2 = st.columns(2)
-            divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], key="ing_divisa")
-            monto = c2.number_input("Monto", min_value=0.0, step=10000.0, key="ing_monto")
-            
-            fuente = st.selectbox("Fuente", ["Nómina", "Negocio", "Inversión", "Regalo", "Otros"])
-            recurrencia = st.selectbox("Frecuencia", ["Único", "Mensual", "Quincenal", "Anual"], index=1)
-            comentario = st.text_area("Notas", height=1)
-            
-            if st.form_submit_button("💾 Guardar Ingreso", use_container_width=True):
-                if monto > 0 and concepto:
-                    try:
-                        sh = connect_sheets("Ingresos")
-                        sh.append_row([
-                            str(fecha), concepto, monto, divisa, fuente, recurrencia, comentario
-                        ])
-                        st.toast("✅ ¡Ingreso registrado exitosamente!")
-                        st.cache_data.clear() # Limpiar caché para refrescar tabla
-                        time.sleep(1)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error guardando: {e}")
-                else:
-                    st.warning("Completa concepto y monto.")
-
-    # --- Main Content: Ver Datos ---
-    with col_main:
-        try:
-            # Cargar datos
-            sh = connect_sheets("Ingresos")
-            records = sh.get_all_records()
-            
-            if records:
-                df = pd.DataFrame(records)
-                
-                # KPI Rápido
-                k1, k2 = st.columns(2)
-                
-                with k1:
-                    total_cop = df[df['Divisa'] == 'COP']['Monto'].sum()
-                    st.metric("Total Ingresos (COP)", f"${total_cop:,.0f}")
+    with st.form("form_deudas_modal"):
+        persona = st.text_input("Persona / Entidad", placeholder="¿Quién?")
+        concepto = st.text_input("Concepto", placeholder="¿Por qué?")
+        
+        c1, c2 = st.columns(2)
+        divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], key="modal_dd_div")
+        monto = c2.number_input("Monto", min_value=0.0, step=10000.0)
+        
+        fecha_limite = st.date_input("Vence", key="modal_dd_limite")
+        comentario = st.text_area("Notas", height=1)
+        alerta = st.checkbox("🔔 Alerta", value=True)
+        
+        if st.form_submit_button("💾 Guardar", use_container_width=True):
+            if persona and monto > 0:
+                try:
+                    tipo_db = "ME_DEBEN" if "Me Deben" in tipo_operacion else "YO_DEBO"
+                    id_unico = f"{tipo_db[:2]}_{int(pd.Timestamp.now().timestamp())}"
                     
-                with k2:
-                    df['Fecha'] = pd.to_datetime(df['Fecha'])
-                    hoy = datetime.now()
-                    mes_actual = df[
-                        (df['Fecha'].dt.month == hoy.month) & 
-                        (df['Fecha'].dt.year == hoy.year)
-                    ]
-                    total_mes_cop = mes_actual[mes_actual['Divisa'] == 'COP']['Monto'].sum()
-                    st.metric(f"Ingresos {hoy.strftime('%B')}", f"${total_mes_cop:,.0f}")
-
-                st.subheader("Historial")
-                st.dataframe(
-                    df.style.format({"Monto": "${:,.2f}"}), 
-                    use_container_width=True,
-                    height=400,
-                    column_config={
-                        "Fecha": st.column_config.DateColumn("Fecha", format="YYYY-MM-DD"),
-                    }
-                )
+                    sh = connect_sheets("Deudas")
+                    sh.append_row([
+                        id_unico, 
+                        str(datetime.now().date()), 
+                        tipo_db, 
+                        persona, 
+                        concepto, 
+                        monto, 
+                        divisa, 
+                        0, 
+                        "PENDIENTE", 
+                        str(fecha_limite),
+                        comentario,
+                        "SÍ" if alerta else "NO"
+                    ])
+                    st.toast("✅ Registro exitoso")
+                    st.cache_data.clear()
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
             else:
-                st.info("ℹ️ No hay ingresos registrados. Usa el panel derecho 👉")
-                
-        except Exception as e:
-            st.error(f"Error cargando hoja de Ingresos: {e}")
+                st.warning("Completa quién y cuánto.")
+
 def render_deudas():
     st.title("🤝 Control de Deudas")
     
-    # Layout: Content (Left) | Panel (Right)
-    col_main, col_panel = st.columns([3, 1])
-    
-    # --- Right Panel: Formulario ---
-    with col_panel:
-        st.markdown("### 📝 Nueva Obligación")
-        tipo_operacion = st.selectbox("Tipo", ["📥 Me Deben", "📤 Yo Debo"], key="deuda_tipo")
-        
-        with st.form("form_deudas_nuevo"):
-            persona = st.text_input("Persona / Entidad", placeholder="¿Quién?")
-            concepto = st.text_input("Concepto", placeholder="¿Por qué?")
-            
-            c1, c2 = st.columns(2)
-            divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], key="dd_div")
-            monto = c2.number_input("Monto", min_value=0.0, step=10000.0)
-            
-            fecha_limite = st.date_input("Vence", key="dd_limite")
-            comentario = st.text_area("Notas", height=1)
-            alerta = st.checkbox("🔔 Alerta", value=True)
-            
-            if st.form_submit_button("💾 Guardar", use_container_width=True):
-                if persona and monto > 0:
-                    try:
-                        tipo_db = "ME_DEBEN" if "Me Deben" in tipo_operacion else "YO_DEBO"
-                        id_unico = f"{tipo_db[:2]}_{int(pd.Timestamp.now().timestamp())}"
-                        
-                        sh = connect_sheets("Deudas")
-                        sh.append_row([
-                            id_unico, 
-                            str(datetime.now().date()), 
-                            tipo_db, 
-                            persona, 
-                            concepto, 
-                            monto, 
-                            divisa, 
-                            0, 
-                            "PENDIENTE", 
-                            str(fecha_limite),
-                            comentario,
-                            "SÍ" if alerta else "NO"
-                        ])
-                        st.toast("✅ Registro exitoso")
-                        st.cache_data.clear()
-                        time.sleep(1)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-                else:
-                    st.warning("Completa quién y cuánto.")
+    col_btn, _ = st.columns([1, 4])
+    if col_btn.button("➕ Nueva Obligación", use_container_width=True, type="primary"):
+        dialog_deuda()
 
-    # --- Main Content: Dashboard ---
-    with col_main:
-        try:
-            sh = connect_sheets("Deudas")
-            records = sh.get_all_records()
+    # --- Main Content: Dashboard (Full Width) ---
+    try:
+        sh = connect_sheets("Deudas")
+        records = sh.get_all_records()
+        
+        if records:
+            df = pd.DataFrame(records)
             
-            if records:
-                df = pd.DataFrame(records)
+            # --- KPIs ---
+            k1, k2 = st.columns(2)
+            
+            activos = df[(df['Tipo'] == 'ME_DEBEN') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum()
+            pasivos = df[(df['Tipo'] == 'YO_DEBO') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum()
                 
-                # --- KPIs ---
-                k1, k2 = st.columns(2)
+            with k1:
+                st.metric("🟢 Me Deben", f"${activos:,.0f}", delta="Activos")
+            with k2:
+                st.metric("🔴 Yo Debo", f"${pasivos:,.0f}", delta="-Pasivos", delta_color="inverse")
                 
-                activos = df[(df['Tipo'] == 'ME_DEBEN') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum()
-                pasivos = df[(df['Tipo'] == 'YO_DEBO') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum()
-                 
-                with k1:
-                    st.metric("🟢 Me Deben", f"${activos:,.0f}", delta="Activos")
-                with k2:
-                    st.metric("🔴 Yo Debo", f"${pasivos:,.0f}", delta="-Pasivos", delta_color="inverse")
+            st.divider()
+            
+            # --- Tablas ---
+            tab_activos, tab_pasivos = st.tabs(["📥 Me Deben", "📤 Yo Debo"])
+            
+            with tab_activos:
+                df_activos = df[df['Tipo'] == 'ME_DEBEN']
+                if not df_activos.empty:
+                    st.dataframe(
+                        df_activos[['Persona', 'MontoOriginal', 'FechaLimite', 'Estado']],
+                        use_container_width=True
+                    )
+                else:
+                    st.info("No tienes cuentas por cobrar.")
                     
-                st.divider()
-                
-                # --- Tablas ---
-                tab_activos, tab_pasivos = st.tabs(["📥 Me Deben", "📤 Yo Debo"])
-                
-                with tab_activos:
-                    df_activos = df[df['Tipo'] == 'ME_DEBEN']
-                    if not df_activos.empty:
-                        st.dataframe(
-                            df_activos[['Persona', 'MontoOriginal', 'FechaLimite', 'Estado']],
-                            use_container_width=True
-                        )
-                    else:
-                        st.info("No tienes cuentas por cobrar.")
-                        
-                with tab_pasivos:
-                    df_pasivos = df[df['Tipo'] == 'YO_DEBO']
-                    if not df_pasivos.empty:
-                        st.dataframe(
-                            df_pasivos[['Persona', 'MontoOriginal', 'FechaLimite', 'Estado']],
-                            use_container_width=True
-                        )
-                    else:
-                        st.success("¡Estás libre de deudas!")
-                        
-            else:
-                st.info("ℹ️ No hay deudas registradas.")
-                
-        except Exception as e:
-            st.error(f"Error cargando Deudas: {e}")
+            with tab_pasivos:
+                df_pasivos = df[df['Tipo'] == 'YO_DEBO']
+                if not df_pasivos.empty:
+                    st.dataframe(
+                        df_pasivos[['Persona', 'MontoOriginal', 'FechaLimite', 'Estado']],
+                        use_container_width=True
+                    )
+                else:
+                    st.success("¡Estás libre de deudas!")
+                    
+        else:
+            st.info("ℹ️ No hay deudas registradas. Usa el botón superior.")
+            
+    except Exception as e:
+        st.error(f"Error cargando Deudas: {e}")
     
 def render_balance():
     st.title("📊 Balance Global")
@@ -659,76 +660,80 @@ def render_balance():
     
     # ... (ingresos y deudas ya definidos arriba) ...
 
-def render_egresos():
-    # st.sidebar.markdown("👇 **Panel de Egresos**") # Ya no es necesario con el nuevo layout
-    
-    # Layout Principal: 3 partes Contenido, 1 parte Panel (Formulario + Filtros)
-    col_main, col_panel = st.columns([3, 1])
-    
-    # ============================================================
-    # PANEL DERECHO: FORMULARIO Y FILTROS
-    # ============================================================
-    with col_panel:
-        st.markdown("### 📝 Nuevo Gasto")
-        with st.form("formulario_gasto"):
-            fecha = st.date_input("📅 Fecha")
-            concepto = st.text_input("📝 Concepto")
-            
-            c1, c2 = st.columns(2)
-            divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"])
-            monto = c2.number_input("Monto", min_value=0.0, step=100.0 if divisa == "COP" else 1.0)
-            
-            categoria = st.selectbox("📁 Categoría", [
-                "Comida", "Transporte", "Ocio", "Servicios", 
-                "Salud", "Ropa", "Educación", "Ahorro", "Otro"
-            ])
-            
-            st.markdown("**🔄 Recurrencia**")
-            recurrencia = st.selectbox("Frecuencia", [
-                "Único", "Semanal", "Quincenal", "Mensual", 
-                "Bimestral", "Trimestral", "Semestral", "Anual"
-            ], index=0, label_visibility="collapsed")
-            
-            c_alert = st.checkbox("🔔 Alerta", value=True)
-            
-            submit = st.form_submit_button("💾 Registrar", use_container_width=True)
-            
-            if submit:
-                # Lógica de guardado (simplificada para brevedad, usando funciones existentes)
-                if concepto and monto > 0:
-                    try:
-                        # ANALISIS IA
-                        score, justificacion, cat_sug, color = 3, "Manual", categoria, "#808080"
-                        if concepto:
-                            try:
-                                from auditor import auditar_gasto
-                                score, justificacion, cat_sug, color = auditar_gasto(concepto, monto, divisa)
-                            except: pass
-                            
-                        ws = connect_sheets(0)
-                        ws.append_row([
-                            str(fecha), concepto, monto, divisa, categoria,
-                            "Manual", "Efectivo", "N/A", score, justificacion,
-                            recurrencia, "SÍ" if c_alert else "NO"
-                        ])
-                        st.toast(f"✅ Gasto guardado: {concepto}")
-                        st.cache_data.clear()
-                        time.sleep(1)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-                else:
-                    st.warning("Completa campos básicos.")
+@st.dialog("� Registrar Nuevo Gasto")
+def dialog_gasto():
+    with st.form("formulario_gasto_modal"):
+        fecha = st.date_input("📅 Fecha")
+        concepto = st.text_input("📝 Concepto")
+        
+        c1, c2 = st.columns(2)
+        divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"])
+        monto = c2.number_input("Monto", min_value=0.0, step=100.0 if divisa == "COP" else 1.0)
+        
+        categoria = st.selectbox("📁 Categoría", [
+            "Comida", "Transporte", "Ocio", "Servicios", 
+            "Salud", "Ropa", "Educación", "Ahorro", "Otro"
+        ])
+        
+        st.markdown("**🔄 Recurrencia**")
+        recurrencia = st.selectbox("Frecuencia", [
+            "Único", "Semanal", "Quincenal", "Mensual", 
+            "Bimestral", "Trimestral", "Semestral", "Anual"
+        ], index=0, label_visibility="collapsed")
+        
+        c_alert = st.checkbox("🔔 Alerta", value=True)
+        
+        submit = st.form_submit_button("💾 Registrar", use_container_width=True)
+        
+        if submit:
+            if concepto and monto > 0:
+                try:
+                    # ANALISIS IA
+                    score, justificacion, cat_sug, color = 3, "Manual", categoria, "#808080"
+                    if concepto:
+                        try:
+                            from auditor import auditar_gasto
+                            score, justificacion, cat_sug, color = auditar_gasto(concepto, monto, divisa)
+                        except: pass
+                        
+                    ws = connect_sheets(0)
+                    ws.append_row([
+                        str(fecha), concepto, monto, divisa, categoria,
+                        "Manual", "Efectivo", "N/A", score, justificacion,
+                        recurrencia, "SÍ" if c_alert else "NO"
+                    ])
+                    st.toast(f"✅ Gasto guardado: {concepto}")
+                    st.cache_data.clear()
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            else:
+                st.warning("Completa campos básicos.")
 
-        st.divider()
-        st.markdown("### 🔍 Filtros")
+def formatear_moneda(monto, divisa):
+    if divisa == "COP":
+        return f"${monto:,.0f} COP"
+    elif divisa == "USD":
+        return f"US${monto:,.2f}"
+    elif divisa == "EUR":
+        return f"€{monto:,.2f}"
+    return f"{monto:,.2f} {divisa}"
+
+def render_egresos():
+    col_layout, _ = st.columns([1, 4])
+    if col_layout.button("➕ Registrar Nuevo Gasto", use_container_width=True, type="primary"):
+        dialog_gasto()
+    
+    # ============================================================
+    # PANEL DE CONTROL (FILTROS)
+    # ============================================================
+    with st.expander("🔍 Filtros y Herramientas", expanded=False):
+        f1, f2, f3 = st.columns(3)
+        filtro_mes = f1.date_input("📅 Rango", [])
+        filtro_cat = f2.multiselect("📁 Categorías", ["Comida", "Transporte", "Ocio", "Servicios", "Salud", "Ropa", "Educación", "Ahorro", "Otro"])
         
-        # Filtros en el panel derecho
-        filtro_mes = st.date_input("📅 Rango", [])
-        filtro_cat = st.multiselect("📁 Categorías", ["Comida", "Transporte", "Ocio", "Servicios", "Salud", "Ropa", "Educación", "Ahorro", "Otro"])
-        
-        # Botón Auditoría (Movido aquí)
-        if st.button("🚀 Auditar Todo (IA)", use_container_width=True):
+        if f3.button("🚀 Auditar Todo (IA)", use_container_width=True):
             with st.spinner("Analizando..."):
                 try:
                     from auditor import run_audit
@@ -739,185 +744,204 @@ def render_egresos():
                     st.error(f"Error: {e}")
 
     # ============================================================
-    # CONTENIDO PRINCIPAL: DASHBOARD
+    # CONTENIDO PRINCIPAL: DASHBOARD (Full Width)
     # ============================================================
-    with col_main:
-        st.title("💸 Gestión de Egresos")
+    st.title("💸 Gestión de Egresos")
+    
+    # ============================================================
+    # CARGA DE DATOS
+    # ============================================================
+    @st.cache_data(ttl=60)
+    def cargar_datos():
+        """Carga registros desde Google Sheets."""
+        try:
+            worksheet = connect_sheets()
+            datos = worksheet.get_all_records()
+            return pd.DataFrame(datos)
+        except Exception as e:
+            st.error(f"Error cargando datos: {e}")
+            return pd.DataFrame()
+
+    df = cargar_datos()
+    
+    if not df.empty:
+        # --- KPIs ---
+        # Calcular totales y conversiones (Lógica existente resumida)
+        total_cop = 0
+        if 'Monto' in df.columns:
+            total_cop = df[df['Divisa']=='COP']['Monto'].sum()
+        
+        k1, k2, k3 = st.columns(3)
+        k1.metric("Total Gastado (COP)", f"${total_cop:,.0f}")
+        k2.metric("Registros", len(df))
+        
+        if 'Score' in df.columns:
+             prom_score = pd.to_numeric(df['Score'], errors='coerce').fillna(0).mean()
+             k3.metric("Score Promedio", f"{prom_score:.1f}/5.0")
+
+        # --- Gráficos ---
+        t1, t2 = st.tabs(["📊 Categorías", "📅 Tendencia"])
+        with t1:
+            if 'Categoria' in df.columns:
+                gastos_cat = df.groupby('Categoria')['Monto'].sum().reset_index() # Simplificado
+                st.bar_chart(gastos_cat.set_index('Categoria'))
+        
+        with t2:
+            if 'Fecha' in df.columns:
+                st.line_chart(df.set_index('Fecha')['Monto']) # Simplificado visual
+        
+        st.divider()
+        
+        # --- Tabla --- 
+        st.subheader("📝 Detalle de Gastos")
+        st.dataframe(df, use_container_width=True)
         
         # ============================================================
-        # CARGA DE DATOS
+        # NOTIFICACIONES DE PAGOS RECURRENTES
         # ============================================================
-        @st.cache_data(ttl=60)
-        def cargar_datos():
-            """Carga registros desde Google Sheets."""
-            try:
-                worksheet = connect_sheets()
-                datos = worksheet.get_all_records()
-                return pd.DataFrame(datos)
-            except Exception as e:
-                st.error(f"Error cargando datos: {e}")
-                return pd.DataFrame()
+        def calcular_proxima_fecha(fecha_original, recurrencia):
+            """Calcula la próxima fecha de pago según la recurrencia."""
+            from dateutil.relativedelta import relativedelta
+            
+            intervalos = {
+                "Semanal": relativedelta(weeks=1),
+                "Quincenal": relativedelta(weeks=2),
+                "Mensual": relativedelta(months=1),
+                "Bimestral": relativedelta(months=2),
+                "Trimestral": relativedelta(months=3),
+                "Semestral": relativedelta(months=6),
+                "Anual": relativedelta(years=1)
+            }
+            
+            if recurrencia not in intervalos or recurrencia == "Único":
+                return None
+            
+            intervalo = intervalos[recurrencia]
+            proxima = fecha_original + intervalo
+            
+            # Avanzar hasta la próxima fecha futura
+            hoy = datetime.now().date()
+            while proxima.date() < hoy:
+                proxima += intervalo
+            
+            return proxima
 
-        df = cargar_datos()
-        
-        if not df.empty:
-            # --- KPIs ---
-            # Calcular totales y conversiones (Lógica existente resumida)
-            total_cop = 0
-            if 'Monto' in df.columns:
-                total_cop = df[df['Divisa']=='COP']['Monto'].sum()
+        # Verificar pagos próximos (si hay columna Recurrencia)
+        if not df.empty and 'Recurrencia' in df.columns and 'Fecha' in df.columns:
+            df_recurrentes = df[df['Recurrencia'].isin(['Semanal', 'Quincenal', 'Mensual', 'Bimestral', 'Trimestral', 'Semestral', 'Anual'])].copy()
             
-            k1, k2, k3 = st.columns(3)
-            k1.metric("Total Gastado (COP)", f"${total_cop:,.0f}")
-            k2.metric("Registros", len(df))
-            
-            if 'Score' in df.columns:
-                 prom_score = pd.to_numeric(df['Score'], errors='coerce').fillna(0).mean()
-                 k3.metric("Score Promedio", f"{prom_score:.1f}/5.0")
-
-            # --- Gráficos ---
-            t1, t2 = st.tabs(["📊 Categorías", "📅 Tendencia"])
-            with t1:
-                if 'Categoria' in df.columns:
-                    gastos_cat = df.groupby('Categoria')['Monto'].sum().reset_index() # Simplificado
-                    st.bar_chart(gastos_cat.set_index('Categoria'))
-            
-            with t2:
-                if 'Fecha' in df.columns:
-                    st.line_chart(df.set_index('Fecha')['Monto']) # Simplificado visual
-            
-            st.divider()
-            
-            # --- Tabla --- 
-            st.subheader("📝 Detalle de Gastos")
-            st.dataframe(df, use_container_width=True)
-            
-            # ============================================================
-            # NOTIFICACIONES DE PAGOS RECURRENTES
-            # ============================================================
-            def calcular_proxima_fecha(fecha_original, recurrencia):
-                """Calcula la próxima fecha de pago según la recurrencia."""
-                from dateutil.relativedelta import relativedelta
-                
-                intervalos = {
-                    "Semanal": relativedelta(weeks=1),
-                    "Quincenal": relativedelta(weeks=2),
-                    "Mensual": relativedelta(months=1),
-                    "Bimestral": relativedelta(months=2),
-                    "Trimestral": relativedelta(months=3),
-                    "Semestral": relativedelta(months=6),
-                    "Anual": relativedelta(years=1)
-                }
-                
-                if recurrencia not in intervalos or recurrencia == "Único":
-                    return None
-                
-                intervalo = intervalos[recurrencia]
-                proxima = fecha_original + intervalo
-                
-                # Avanzar hasta la próxima fecha futura
-                hoy = datetime.now().date()
-                while proxima.date() < hoy:
-                    proxima += intervalo
-                
-                return proxima
-
-            # Verificar pagos próximos (si hay columna Recurrencia)
-            if not df.empty and 'Recurrencia' in df.columns and 'Fecha' in df.columns:
-                df_recurrentes = df[df['Recurrencia'].isin(['Semanal', 'Quincenal', 'Mensual', 'Bimestral', 'Trimestral', 'Semestral', 'Anual'])].copy()
-                
-                if not df_recurrentes.empty:
-                    try:
-                        from dateutil.relativedelta import relativedelta
-                        
-                        pagos_hoy = []
-                        pagos_proximos = []
-                        hoy = datetime.now().date()
-                        en_3_dias = hoy + timedelta(days=3)
-                        
-                        for _, row in df_recurrentes.iterrows():
-                            try:
-                                # Verificar si tiene alertas activadas (columna index 9 aprox, o por nombre si existe)
-                                # Si no existe la columna Alerta, asumimos que SÍ quiere alerta por defecto
-                                if 'Alerta' in df.columns and str(row.get('Alerta', '')).upper() == 'NO':
-                                    continue
-                                    
-                                fecha_orig = pd.to_datetime(row['Fecha'])
-                                proxima = calcular_proxima_fecha(fecha_orig, row['Recurrencia'])
-                                
-                                if proxima:
-                                    fecha_pago = proxima.date()
-                                    pago_info = {
-                                        'concepto': row.get('Concepto', 'Pago'),
-                                        'monto': row.get('Monto', 0),
-                                        'divisa': row.get('Divisa', 'COP'),
-                                        'fecha': proxima.strftime('%d/%m/%Y'),
-                                        'recurrencia': row['Recurrencia'],
-                                        'dias_restantes': (fecha_pago - hoy).days
-                                    }
-                                    
-                                    if fecha_pago == hoy:
-                                        pagos_hoy.append(pago_info)
-                                    elif hoy < fecha_pago <= en_3_dias:
-                                        pagos_proximos.append(pago_info)
-                            except:
+            if not df_recurrentes.empty:
+                try:
+                    from dateutil.relativedelta import relativedelta
+                    
+                    pagos_hoy = []
+                    pagos_proximos = []
+                    hoy = datetime.now().date()
+                    en_3_dias = hoy + timedelta(days=3)
+                    
+                    for _, row in df_recurrentes.iterrows():
+                        try:
+                            # Verificar si tiene alertas activadas (columna index 9 aprox, o por nombre si existe)
+                            # Si no existe la columna Alerta, asumimos que SÍ quiere alerta por defecto
+                            if 'Alerta' in df.columns and str(row.get('Alerta', '')).upper() == 'NO':
                                 continue
-                        
-                        # CSS para animación llamativa
-                        st.markdown("""
-                        <style>
-                        @keyframes pulse {
-                            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-                            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-                            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-                        }
-                        .pago-urgente {
-                            animation: pulse 1.5s infinite;
-                        }
-                        </style>
+                                
+                            fecha_orig = pd.to_datetime(row['Fecha'])
+                            proxima = calcular_proxima_fecha(fecha_orig, row['Recurrencia'])
+                            
+                            if proxima:
+                                fecha_pago = proxima.date()
+                                pago_info = {
+                                    'concepto': row.get('Concepto', 'Pago'),
+                                    'monto': row.get('Monto', 0),
+                                    'divisa': row.get('Divisa', 'COP'),
+                                    'fecha': proxima.strftime('%d/%m/%Y'),
+                                    'recurrencia': row['Recurrencia'],
+                                    'dias_restantes': (fecha_pago - hoy).days
+                                }
+                                
+                                if fecha_pago == hoy:
+                                    pagos_hoy.append(pago_info)
+                                elif hoy < fecha_pago <= en_3_dias:
+                                    pagos_proximos.append(pago_info)
+                        except:
+                            continue
+                    
+                    # CSS para animación llamativa
+                    st.markdown("""
+                    <style>
+                    @keyframes pulse {
+                        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+                        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+                    }
+                    .pago-urgente {
+                        animation: pulse 1.5s infinite;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+                    
+                    # PAGOS DE HOY - MUY LLAMATIVO
+                    if pagos_hoy:
+                        st.markdown(f"""
+                        <div class="pago-urgente" style="
+                            background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+                            border: 2px solid #ef4444;
+                            border-radius: 12px;
+                            padding: 20px;
+                            margin-bottom: 16px;
+                            text-align: center;
+                        ">
+                            <h3 style="color: #fca5a5; margin: 0 0 10px 0;">⚠️ ¡PAGO HOY! ⚠️</h3>
+                            <p style="color: #ffffff; font-size: 1.1rem; margin: 0;">
+                                Tienes <strong>{len(pagos_hoy)}</strong> pago(s) programado(s) para HOY
+                            </p>
+                        </div>
                         """, unsafe_allow_html=True)
                         
-                        # PAGOS DE HOY - MUY LLAMATIVO
-                        if pagos_hoy:
+                        for pago in pagos_hoy:
                             st.markdown(f"""
-                            <div class="pago-urgente" style="
-                                background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
-                                border: 2px solid #ef4444;
-                                border-radius: 12px;
-                                padding: 20px;
-                                margin-bottom: 16px;
-                                text-align: center;
+                            <div style="
+                                background-color: #450a0a;
+                                border-left: 4px solid #ef4444;
+                                padding: 14px;
+                                border-radius: 8px;
+                                margin-bottom: 10px;
                             ">
-                                <h3 style="color: #fca5a5; margin: 0 0 10px 0;">⚠️ ¡PAGO HOY! ⚠️</h3>
-                                <p style="color: #ffffff; font-size: 1.1rem; margin: 0;">
-                                    Tienes <strong>{len(pagos_hoy)}</strong> pago(s) programado(s) para HOY
-                                </p>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="color: #ffffff; font-size: 1.1rem;">🔴 {pago['concepto']}</strong>
+                                    <span style="color: #fca5a5; font-size: 1.2rem; font-weight: bold;">
+                                        {formatear_moneda(pago['monto'], pago['divisa'])}
+                                    </span>
+                                </div>
+                                <small style="color: #f87171;">📅 Vence HOY - {pago['recurrencia']}</small>
+                            </div>
+                            """, unsafe_allow_html=True)
+                    
+                    # PAGOS EN 3 DÍAS - Advertencia
+                    if pagos_proximos:
+                        st.warning(f"🔔 **{len(pagos_proximos)} pago(s) en los próximos 3 días:**")
+                        for pago in pagos_proximos[:5]:
+                            dias = pago['dias_restantes']
+                            st.markdown(f"""
+                            <div style="
+                                background-color: #422006;
+                                border-left: 3px solid #f59e0b;
+                                padding: 12px;
+                                border-radius: 6px;
+                                margin-bottom: 8px;
+                            ">
+                                <strong style="color: #ffffff;">{pago['concepto']}</strong> - 
+                                <span style="color: #fcd34d;">{formatear_moneda(pago['monto'], pago['divisa'])}</span>
+                                <br><small style="color: #fbbf24;">📅 En {dias} día(s) - {pago['fecha']} ({pago['recurrencia']})</small>
                             </div>
                             """, unsafe_allow_html=True)
                             
-                            for pago in pagos_hoy:
-                                st.markdown(f"""
-                                <div style="
-                                    background-color: #fee2e2; 
-                                    border-left: 5px solid #ef4444; 
-                                    padding: 10px; 
-                                    margin-bottom: 8px; 
-                                    border-radius: 4px;
-                                ">
-                                    <strong>{pago['concepto']}</strong>: {pago['divisa']} {pago['monto']:,.0f}
-                                </div>
-                                """, unsafe_allow_html=True)
-                        
-                        # PAGOS PRÓXIMOS
-                        if pagos_proximos:
-                            st.subheader("🔔 Próximos Pagos")
-                            for pago in pagos_proximos:
-                                st.info(f"**{pago['concepto']}**: {pago['divisa']} {pago['monto']:,.0f} el {pago['fecha']} (en {pago['dias_restantes']} días)")
-                    except Exception as e:
-                        st.error(f"Error en notificaciones: {e}")
-            
-        else:
-            st.info("No hay gastos registrados. Usa el panel derecho para comenzar.")
+                except ImportError:
+                    pass  # dateutil no instalado
+    
+    else:
+        st.info("No hay gastos registrados. Usa el botón superior.")
 
 # ============================================================
 # ENRUTAMIENTO FINAL
