@@ -365,8 +365,8 @@ with st.sidebar.expander("➕ Registrar Nuevo Gasto", expanded=False):
         ], help="¿Se repite este gasto?")
         
         medio_pago = st.selectbox("💳 Medio de Pago", [
-            "Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "Transferencia"
-        ])
+            "Tarjeta Débito", "Tarjeta Crédito", "Efectivo", "Transferencia"
+        ], index=0)  # Tarjeta Débito por defecto
         
         lugar = st.text_input("📍 Lugar (Opcional)")
         banco = st.text_input("🏦 Banco (Opcional)")
@@ -386,6 +386,73 @@ with st.sidebar.expander("➕ Registrar Nuevo Gasto", expanded=False):
                     st.error(f"Error: {e}")
             else:
                 st.warning("Completa concepto y monto.")
+
+# ============================================================
+# SECCIÓN DE DEUDAS
+# ============================================================
+st.sidebar.divider()
+with st.sidebar.expander("💸 Gestión de Deudas", expanded=False):
+    
+    # Tabs para Me Deben / Debo
+    tab_me_deben, tab_yo_debo = st.tabs(["📥 Me Deben", "📤 Yo Debo"])
+    
+    with tab_me_deben:
+        st.markdown("**Registrar quién te debe:**")
+        with st.form("form_me_deben"):
+            deudor = st.text_input("👤 Nombre de quien te debe")
+            monto_deuda = st.number_input("💵 Monto", min_value=0.0, step=1000.0, key="monto_deben")
+            divisa_deuda = st.selectbox("Divisa", ["COP", "USD", "EUR"], key="divisa_deben")
+            concepto_deuda = st.text_input("📝 Por qué concepto", key="concepto_deben")
+            fecha_prestamo = st.date_input("📅 Fecha del préstamo", key="fecha_deben")
+            fecha_limite = st.date_input("⏰ Fecha límite de pago", key="limite_deben")
+            recordar = st.checkbox("🔔 Crear recordatorio", value=True, key="recordar_deben")
+            
+            if st.form_submit_button("💾 Guardar Deuda", use_container_width=True):
+                if deudor and monto_deuda > 0:
+                    try:
+                        worksheet = connect_sheets()
+                        # Agregar como fila especial con tipo "ME_DEBEN"
+                        nueva_fila = [
+                            str(fecha_prestamo), f"DEUDA: {deudor} me debe", monto_deuda, 
+                            divisa_deuda, "Deuda - Me Deben", concepto_deuda, "Préstamo", 
+                            deudor, "Único" if not recordar else "Mensual"
+                        ]
+                        worksheet.append_row(nueva_fila)
+                        st.success(f"✅ Registrado: {deudor} te debe {monto_deuda} {divisa_deuda}")
+                        st.cache_data.clear()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                else:
+                    st.warning("Completa nombre y monto.")
+    
+    with tab_yo_debo:
+        st.markdown("**Registrar a quién le debes:**")
+        with st.form("form_yo_debo"):
+            acreedor = st.text_input("👤 Nombre de a quién le debes")
+            monto_debo = st.number_input("💵 Monto", min_value=0.0, step=1000.0, key="monto_debo")
+            divisa_debo = st.selectbox("Divisa", ["COP", "USD", "EUR"], key="divisa_debo")
+            concepto_debo = st.text_input("📝 Por qué concepto", key="concepto_debo")
+            fecha_deuda = st.date_input("📅 Fecha de la deuda", key="fecha_debo")
+            fecha_pago = st.date_input("⏰ Fecha límite de pago", key="pago_debo")
+            recordar_debo = st.checkbox("🔔 Crear recordatorio", value=True, key="recordar_debo")
+            
+            if st.form_submit_button("💾 Guardar Deuda", use_container_width=True):
+                if acreedor and monto_debo > 0:
+                    try:
+                        worksheet = connect_sheets()
+                        # Agregar como fila especial con tipo "YO_DEBO"
+                        nueva_fila = [
+                            str(fecha_deuda), f"DEUDA: Debo a {acreedor}", monto_debo, 
+                            divisa_debo, "Deuda - Yo Debo", concepto_debo, "Préstamo", 
+                            acreedor, "Único" if not recordar_debo else "Mensual"
+                        ]
+                        worksheet.append_row(nueva_fila)
+                        st.success(f"✅ Registrado: Debes {monto_debo} {divisa_debo} a {acreedor}")
+                        st.cache_data.clear()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                else:
+                    st.warning("Completa nombre y monto.")
 
 # ============================================================
 # CARGA DE DATOS
