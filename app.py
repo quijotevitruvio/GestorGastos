@@ -24,10 +24,15 @@ import pandas as pd          # Manejo de datos tabulares
 import plotly.express as px  # Gráficos interactivos
 import gspread               # Conexión con Google Sheets
 import json
+import time
 import os                    # Variables de entorno
 from datetime import datetime, timedelta
 from dotenv import load_dotenv  # Cargar variables desde .env
 from currency import convertir_columna, formatear_moneda, obtener_tasas  # Conversión de divisas
+from validators import (  # Validación de datos
+    sanitizar_texto, validar_monto, validar_fecha, validar_concepto,
+    validar_formulario_gasto, validar_formulario_ingreso, validar_formulario_deuda
+)
 
 # ============================================================
 # CONFIGURACIÓN INICIAL
@@ -449,6 +454,12 @@ def render_ingresos():
     if col_btn.button("➕ Nuevo Ingreso", use_container_width=True, type="primary"):
         dialog_ingreso()
 
+    # --- Filtros ---
+    with st.expander("🔍 Filtros", expanded=False):
+        f1, f2 = st.columns(2)
+        filtro_fuente = f1.multiselect("Fuente", ["Nómina", "Negocio", "Inversión", "Regalo", "Otros"])
+        filtro_fecha = f2.date_input("Rango de Fechas", [])
+
     # --- Ver Datos (Full Width) ---
     try:
         sh = connect_sheets("Ingresos")
@@ -457,32 +468,154 @@ def render_ingresos():
         if records:
             df = pd.DataFrame(records)
             
+            # Aplicar filtros
+            if filtro_fuente and 'Fuente' in df.columns:
+                df = df[df['Fuente'].isin(filtro_fuente)]
+            
             # KPI Rápido
-            k1, k2 = st.columns(2)
+            k1, k2, k3 = st.columns(3)
             
             with k1:
-                total_cop = df[df['Divisa'] == 'COP']['Monto'].sum()
+                total_cop = df[df['Divisa'] == 'COP']['Monto'].sum() if 'Divisa' in df.columns else df['Monto'].sum()
                 st.metric("Total Ingresos (COP)", f"${total_cop:,.0f}")
                 
             with k2:
-                df['Fecha'] = pd.to_datetime(df['Fecha'])
+                df['Fecha'] = pd.to_datetime(df['Fecha'], errors='coerce')
                 hoy = datetime.now()
                 mes_actual = df[
                     (df['Fecha'].dt.month == hoy.month) & 
                     (df['Fecha'].dt.year == hoy.year)
                 ]
-                total_mes_cop = mes_actual[mes_actual['Divisa'] == 'COP']['Monto'].sum()
+                total_mes_cop = mes_actual[mes_actual['Divisa'] == 'COP']['Monto'].sum() if 'Divisa' in mes_actual.columns else mes_actual['Monto'].sum()
                 st.metric(f"Ingresos {hoy.strftime('%B')}", f"${total_mes_cop:,.0f}")
+            
+            with k3:
+                st.metric("Registros", len(df))
 
+            # --- Gráficos Plotly ---
+            t1, t2 = st.tabs(["📊 Por Fuente", "📅 Tendencia"])
+            with t1:
+                if 'Fuente' in df.columns:
+                    ing_fuente = df.groupby('Fuente')['Monto'].sum().reset_index()
+                    fig_pie = px.pie(ing_fuente, values='Monto', names='Fuente', 
+                                     hole=0.4, title="Distribución por Fuente")
+                    fig_pie.update_layout(template="plotly_dark")
+                    st.plotly_chart(fig_pie, use_container_width=True)
+            
+            with t2:
+                df_trend = df.dropna(subset=['Fecha']).sort_values('Fecha')
+                if not df_trend.empty:
+                    fig_line = px.line(df_trend, x='Fecha', y='Monto', markers=True,
+                                       title="Tendencia de Ingresos")
+                    fig_line.update_layout(template="plotly_dark")
+                    st.plotly_chart(fig_line, use_container_width=True)
+
+            st.divider()
+            
+            # --- Tabla Interactiva ---
             st.subheader("Historial")
-            st.dataframe(
-                df.style.format({"Monto": "${:,.2f}"}), 
-                use_container_width=True,
-                height=400,
-                column_config={
-                    "Fecha": st.column_config.DateColumn("Fecha", format="YYYY-MM-DD"),
-                }
-            )
+            
+            df_display = df.copy()
+            df_display.insert(0, 'Fila', range(2, len(df) + 2))
+            
+            cols_display = ['Fila', 'Fecha', 'Concepto', 'Monto', 'Divisa', 'Fuente', 'Recurrencia']
+            cols_existentes = [c for c in cols_display if c in df_display.columns]
+            
+            st.markdown("**Selecciona una fila para editar o eliminar:**")
+            
+            col_select, col_edit, col_delete = st.columns([2, 1, 1])
+            
+            with col_select:
+                filas_disponibles = df_display['Fila'].tolist()
+                if filas_disponibles:
+                    fila_seleccionada = st.selectbox(
+                        "Fila #", 
+                        options=filas_disponibles,
+                        format_func=lambda x: f"Fila {x}: {df_display[df_display['Fila']==x]['Concepto'].values[0] if len(df_display[df_display['Fila']==x]) > 0 else 'N/A'}",
+                        key="selector_fila_ingreso"
+                    )
+                else:
+                    fila_seleccionada = None
+            
+            with col_edit:
+                if st.button("✏️ Editar", use_container_width=True, key="btn_editar_ingreso") and fila_seleccionada:
+                    st.session_state['editar_fila_ingreso'] = fila_seleccionada
+                    st.session_state['datos_fila_ingreso'] = df_display[df_display['Fila'] == fila_seleccionada].iloc[0].to_dict()
+            
+            with col_delete:
+                if st.button("🗑️ Eliminar", use_container_width=True, type="secondary", key="btn_eliminar_ingreso") and fila_seleccionada:
+                    st.session_state['eliminar_fila_ingreso'] = fila_seleccionada
+            
+            # Modal de Edición
+            if 'editar_fila_ingreso' in st.session_state and st.session_state.get('editar_fila_ingreso'):
+                fila = st.session_state['editar_fila_ingreso']
+                datos = st.session_state.get('datos_fila_ingreso', {})
+                
+                with st.form(f"form_editar_ingreso_{fila}"):
+                    st.markdown(f"### ✏️ Editando Ingreso (Fila {fila})")
+                    
+                    new_fecha = st.date_input("Fecha", value=pd.to_datetime(datos.get('Fecha', datetime.now())).date())
+                    new_concepto = st.text_input("Concepto", value=datos.get('Concepto', ''))
+                    
+                    c1, c2 = st.columns(2)
+                    new_divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], 
+                                              index=["COP", "USD", "EUR"].index(datos.get('Divisa', 'COP')) if datos.get('Divisa') in ["COP", "USD", "EUR"] else 0)
+                    new_monto = c2.number_input("Monto", value=float(datos.get('Monto', 0)), min_value=0.0)
+                    
+                    new_fuente = st.selectbox("Fuente", ["Nómina", "Negocio", "Inversión", "Regalo", "Otros"],
+                        index=["Nómina", "Negocio", "Inversión", "Regalo", "Otros"].index(datos.get('Fuente', 'Otros')) if datos.get('Fuente') in ["Nómina", "Negocio", "Inversión", "Regalo", "Otros"] else 4
+                    )
+                    
+                    col_save, col_cancel = st.columns(2)
+                    if col_save.form_submit_button("💾 Guardar Cambios", use_container_width=True):
+                        try:
+                            ws = connect_sheets("Ingresos")
+                            ws.update_cell(fila, 1, str(new_fecha))
+                            ws.update_cell(fila, 2, new_concepto)
+                            ws.update_cell(fila, 3, new_monto)
+                            ws.update_cell(fila, 4, new_divisa)
+                            ws.update_cell(fila, 5, new_fuente)
+                            
+                            st.success("✅ Ingreso actualizado")
+                            st.session_state.pop('editar_fila_ingreso', None)
+                            st.session_state.pop('datos_fila_ingreso', None)
+                            st.cache_data.clear()
+                            time.sleep(1)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+                    
+                    if col_cancel.form_submit_button("❌ Cancelar", use_container_width=True):
+                        st.session_state.pop('editar_fila_ingreso', None)
+                        st.session_state.pop('datos_fila_ingreso', None)
+                        st.rerun()
+            
+            # Modal de Eliminación
+            if 'eliminar_fila_ingreso' in st.session_state and st.session_state.get('eliminar_fila_ingreso'):
+                fila = st.session_state['eliminar_fila_ingreso']
+                concepto_eliminar = df_display[df_display['Fila'] == fila]['Concepto'].values[0] if len(df_display[df_display['Fila'] == fila]) > 0 else 'este registro'
+                
+                st.warning(f"⚠️ ¿Eliminar **{concepto_eliminar}** (Fila {fila})?")
+                
+                col_confirm, col_cancel = st.columns(2)
+                if col_confirm.button("🗑️ Confirmar", use_container_width=True, type="primary", key="confirm_del_ing"):
+                    try:
+                        ws = connect_sheets("Ingresos")
+                        ws.delete_rows(fila)
+                        st.success("✅ Eliminado")
+                        st.session_state.pop('eliminar_fila_ingreso', None)
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                
+                if col_cancel.button("❌ Cancelar", use_container_width=True, key="cancel_del_ing"):
+                    st.session_state.pop('eliminar_fila_ingreso', None)
+                    st.rerun()
+            
+            # Tabla
+            st.dataframe(df_display[cols_existentes], use_container_width=True, height=400)
         else:
             st.info("ℹ️ No hay ingresos registrados. Pulsa el botón para agregar uno.")
             
@@ -541,6 +674,13 @@ def render_deudas():
     if col_btn.button("➕ Nueva Obligación", use_container_width=True, type="primary"):
         dialog_deuda()
 
+    # --- Filtros ---
+    with st.expander("🔍 Filtros", expanded=False):
+        f1, f2, f3 = st.columns(3)
+        filtro_tipo = f1.selectbox("Tipo", ["Todos", "📥 Me Deben", "📤 Yo Debo"])
+        filtro_estado = f2.selectbox("Estado", ["Todos", "PENDIENTE", "PAGADO"])
+        filtro_persona = f3.text_input("Buscar Persona")
+
     # --- Main Content: Dashboard (Full Width) ---
     try:
         sh = connect_sheets("Deudas")
@@ -549,41 +689,162 @@ def render_deudas():
         if records:
             df = pd.DataFrame(records)
             
-            # --- KPIs ---
-            k1, k2 = st.columns(2)
+            # Aplicar filtros
+            if filtro_tipo != "Todos":
+                tipo_filtro = "ME_DEBEN" if "Me Deben" in filtro_tipo else "YO_DEBO"
+                df = df[df['Tipo'] == tipo_filtro]
+            if filtro_estado != "Todos" and 'Estado' in df.columns:
+                df = df[df['Estado'] == filtro_estado]
+            if filtro_persona and 'Persona' in df.columns:
+                df = df[df['Persona'].str.contains(filtro_persona, case=False, na=False)]
             
-            activos = df[(df['Tipo'] == 'ME_DEBEN') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum()
-            pasivos = df[(df['Tipo'] == 'YO_DEBO') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum()
+            # --- KPIs ---
+            k1, k2, k3 = st.columns(3)
+            
+            activos = df[(df['Tipo'] == 'ME_DEBEN') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if 'MontoOriginal' in df.columns else 0
+            pasivos = df[(df['Tipo'] == 'YO_DEBO') & (df['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if 'MontoOriginal' in df.columns else 0
+            balance_deudas = activos - pasivos
                 
             with k1:
                 st.metric("🟢 Me Deben", f"${activos:,.0f}", delta="Activos")
             with k2:
                 st.metric("🔴 Yo Debo", f"${pasivos:,.0f}", delta="-Pasivos", delta_color="inverse")
+            with k3:
+                st.metric("📊 Balance Neto", f"${balance_deudas:,.0f}", 
+                         delta="A favor" if balance_deudas >= 0 else "En contra",
+                         delta_color="normal" if balance_deudas >= 0 else "inverse")
+                
+            # --- Gráfico ---
+            if 'Tipo' in df.columns and 'MontoOriginal' in df.columns:
+                deudas_tipo = df.groupby('Tipo')['MontoOriginal'].sum().reset_index()
+                deudas_tipo['Tipo'] = deudas_tipo['Tipo'].map({'ME_DEBEN': 'Me Deben', 'YO_DEBO': 'Yo Debo'})
+                fig_pie = px.pie(deudas_tipo, values='MontoOriginal', names='Tipo', 
+                                 hole=0.4, title="Distribución de Deudas",
+                                 color_discrete_map={'Me Deben': '#22c55e', 'Yo Debo': '#ef4444'})
+                fig_pie.update_layout(template="plotly_dark")
+                st.plotly_chart(fig_pie, use_container_width=True)
                 
             st.divider()
             
-            # --- Tablas ---
-            tab_activos, tab_pasivos = st.tabs(["📥 Me Deben", "📤 Yo Debo"])
+            # --- Tabla Interactiva ---
+            st.subheader("📋 Detalle de Obligaciones")
             
-            with tab_activos:
-                df_activos = df[df['Tipo'] == 'ME_DEBEN']
-                if not df_activos.empty:
-                    st.dataframe(
-                        df_activos[['Persona', 'MontoOriginal', 'FechaLimite', 'Estado']],
-                        use_container_width=True
+            # Preparar datos para mostrar
+            df_display = df.copy()
+            # Obtener índices de fila originales
+            df_display.insert(0, 'Fila', range(2, len(df) + 2))
+            
+            cols_display = ['Fila', 'Tipo', 'Persona', 'Concepto', 'MontoOriginal', 'Divisa', 'Estado', 'FechaLimite']
+            cols_existentes = [c for c in cols_display if c in df_display.columns]
+            
+            st.markdown("**Selecciona una fila para acciones:**")
+            
+            col_select, col_edit, col_status, col_delete = st.columns([2, 1, 1, 1])
+            
+            with col_select:
+                filas_disponibles = df_display['Fila'].tolist()
+                if filas_disponibles:
+                    fila_seleccionada = st.selectbox(
+                        "Fila #", 
+                        options=filas_disponibles,
+                        format_func=lambda x: f"Fila {x}: {df_display[df_display['Fila']==x]['Persona'].values[0] if len(df_display[df_display['Fila']==x]) > 0 else 'N/A'}",
+                        key="selector_fila_deuda"
                     )
                 else:
-                    st.info("No tienes cuentas por cobrar.")
+                    fila_seleccionada = None
+            
+            with col_edit:
+                if st.button("✏️ Editar", use_container_width=True, key="btn_editar_deuda") and fila_seleccionada:
+                    st.session_state['editar_fila_deuda'] = fila_seleccionada
+                    st.session_state['datos_fila_deuda'] = df_display[df_display['Fila'] == fila_seleccionada].iloc[0].to_dict()
+            
+            with col_status:
+                if st.button("✅ Pagado", use_container_width=True, key="btn_pagar_deuda") and fila_seleccionada:
+                    try:
+                        ws = connect_sheets("Deudas")
+                        # Columna Estado es la 9 (índice base 1)
+                        ws.update_cell(fila_seleccionada, 9, "PAGADO")
+                        st.success("✅ Marcado como PAGADO")
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+            
+            with col_delete:
+                if st.button("🗑️ Eliminar", use_container_width=True, type="secondary", key="btn_eliminar_deuda") and fila_seleccionada:
+                    st.session_state['eliminar_fila_deuda'] = fila_seleccionada
+            
+            # Modal de Edición
+            if 'editar_fila_deuda' in st.session_state and st.session_state.get('editar_fila_deuda'):
+                fila = st.session_state['editar_fila_deuda']
+                datos = st.session_state.get('datos_fila_deuda', {})
+                
+                with st.form(f"form_editar_deuda_{fila}"):
+                    st.markdown(f"### ✏️ Editando Deuda (Fila {fila})")
                     
-            with tab_pasivos:
-                df_pasivos = df[df['Tipo'] == 'YO_DEBO']
-                if not df_pasivos.empty:
-                    st.dataframe(
-                        df_pasivos[['Persona', 'MontoOriginal', 'FechaLimite', 'Estado']],
-                        use_container_width=True
+                    new_persona = st.text_input("Persona / Entidad", value=datos.get('Persona', ''))
+                    new_concepto = st.text_input("Concepto", value=datos.get('Concepto', ''))
+                    
+                    c1, c2 = st.columns(2)
+                    new_divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], 
+                                              index=["COP", "USD", "EUR"].index(datos.get('Divisa', 'COP')) if datos.get('Divisa') in ["COP", "USD", "EUR"] else 0)
+                    new_monto = c2.number_input("Monto", value=float(datos.get('MontoOriginal', 0)), min_value=0.0)
+                    
+                    new_estado = st.selectbox("Estado", ["PENDIENTE", "PAGADO"],
+                        index=["PENDIENTE", "PAGADO"].index(datos.get('Estado', 'PENDIENTE')) if datos.get('Estado') in ["PENDIENTE", "PAGADO"] else 0
                     )
-                else:
-                    st.success("¡Estás libre de deudas!")
+                    
+                    col_save, col_cancel = st.columns(2)
+                    if col_save.form_submit_button("💾 Guardar Cambios", use_container_width=True):
+                        try:
+                            ws = connect_sheets("Deudas")
+                            ws.update_cell(fila, 4, new_persona)      # Persona
+                            ws.update_cell(fila, 5, new_concepto)     # Concepto
+                            ws.update_cell(fila, 6, new_monto)        # MontoOriginal
+                            ws.update_cell(fila, 7, new_divisa)       # Divisa
+                            ws.update_cell(fila, 9, new_estado)       # Estado
+                            
+                            st.success("✅ Deuda actualizada")
+                            st.session_state.pop('editar_fila_deuda', None)
+                            st.session_state.pop('datos_fila_deuda', None)
+                            st.cache_data.clear()
+                            time.sleep(1)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+                    
+                    if col_cancel.form_submit_button("❌ Cancelar", use_container_width=True):
+                        st.session_state.pop('editar_fila_deuda', None)
+                        st.session_state.pop('datos_fila_deuda', None)
+                        st.rerun()
+            
+            # Modal de Eliminación
+            if 'eliminar_fila_deuda' in st.session_state and st.session_state.get('eliminar_fila_deuda'):
+                fila = st.session_state['eliminar_fila_deuda']
+                persona_eliminar = df_display[df_display['Fila'] == fila]['Persona'].values[0] if len(df_display[df_display['Fila'] == fila]) > 0 else 'este registro'
+                
+                st.warning(f"⚠️ ¿Eliminar deuda con **{persona_eliminar}** (Fila {fila})?")
+                
+                col_confirm, col_cancel = st.columns(2)
+                if col_confirm.button("🗑️ Confirmar", use_container_width=True, type="primary", key="confirm_del_deuda"):
+                    try:
+                        ws = connect_sheets("Deudas")
+                        ws.delete_rows(fila)
+                        st.success("✅ Eliminado")
+                        st.session_state.pop('eliminar_fila_deuda', None)
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                
+                if col_cancel.button("❌ Cancelar", use_container_width=True, key="cancel_del_deuda"):
+                    st.session_state.pop('eliminar_fila_deuda', None)
+                    st.rerun()
+            
+            # Tabla
+            st.dataframe(df_display[cols_existentes], use_container_width=True, height=400)
                     
         else:
             st.info("ℹ️ No hay deudas registradas. Usa el botón superior.")
@@ -594,65 +855,198 @@ def render_deudas():
 def render_balance():
     st.title("📊 Balance Global")
     
-    col_main, col_chart = st.columns([1, 1])
-    
     try:
-        # Cargar datos
-        sh_gastos = connect_sheets(0) # Egresos (default)
+        # ============================================================
+        # CARGAR DATOS DE TODOS LOS MÓDULOS
+        # ============================================================
+        sh_gastos = connect_sheets(0)
         sh_ingresos = connect_sheets("Ingresos")
+        sh_deudas = connect_sheets("Deudas")
         
         df_gastos = pd.DataFrame(sh_gastos.get_all_records())
         df_ingresos = pd.DataFrame(sh_ingresos.get_all_records())
+        df_deudas = pd.DataFrame(sh_deudas.get_all_records())
         
-        # Calcular Totales (Simplificado: Sin conversión de divisa avanzada por ahora)
-        # TODO: Implementar conversión real usando la herramienta de divisas
-        
-        total_ingresos = 0
-        if not df_ingresos.empty:
-            # Sumar solo columnas numéricas de 'Monto'
-            # Filtrar por COP idealmente, o sumar crudo si el usuario maneja una sola moneda principal
-            # Asumimos mezcla de monedas se suma directo por ahora (v1)
-            total_ingresos = pd.to_numeric(df_ingresos['Monto'], errors='coerce').sum()
-            
-        total_gastos = 0
-        if not df_gastos.empty:
-            total_gastos = pd.to_numeric(df_gastos['Monto'], errors='coerce').sum()
-            
+        # ============================================================
+        # CALCULAR TOTALES
+        # ============================================================
+        total_ingresos = pd.to_numeric(df_ingresos['Monto'], errors='coerce').sum() if not df_ingresos.empty and 'Monto' in df_ingresos.columns else 0
+        total_gastos = pd.to_numeric(df_gastos['Monto'], errors='coerce').sum() if not df_gastos.empty and 'Monto' in df_gastos.columns else 0
         ahorro_neto = total_ingresos - total_gastos
         
-        # KPIs Principales
-        with col_main:
-            st.subheader("Resumen Financiero")
-            st.metric("💰 Ingresos Totales", f"${total_ingresos:,.0f}")
-            st.metric("💸 Egresos Totales", f"${total_gastos:,.0f}")
-            st.divider()
-            st.metric("🐷 Ahorro Neto", f"${ahorro_neto:,.0f}", 
-                     delta="Superávit" if ahorro_neto >= 0 else "Déficit",
-                     delta_color="normal" if ahorro_neto >= 0 else "inverse")
-                     
-        # Gráficos
-        with col_chart:
-            st.subheader("Flujo de Caja")
-            if total_ingresos > 0 or total_gastos > 0:
-                chart_data = pd.DataFrame({
-                    "Categoría": ["Ingresos", "Egresos"],
-                    "Monto": [total_ingresos, total_gastos]
-                })
-                
-                # Gráfico de barras simple
-                st.bar_chart(chart_data.set_index("Categoría"), color=["#22c55e", "#ef4444"]) # Verde y Rojo (si soporta lista)
-                # Streamlit bar_chart a veces ignora color list si no es dataframe column.
-                # Pero la visualización por defecto está bien.
-            else:
-                st.info("Sin datos suficientes para graficar.")
-                
-        # Tabla combinada reciente (Opcional)
-        st.divider()
-        st.subheader("Últimos Movimientos")
-        # Aquí podríamos unir los dataframes por fecha y mostrar los últimos 10
+        # Deudas
+        me_deben = df_deudas[(df_deudas['Tipo'] == 'ME_DEBEN') & (df_deudas['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if not df_deudas.empty and 'MontoOriginal' in df_deudas.columns else 0
+        yo_debo = df_deudas[(df_deudas['Tipo'] == 'YO_DEBO') & (df_deudas['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if not df_deudas.empty and 'MontoOriginal' in df_deudas.columns else 0
         
+        # Tasa de ahorro
+        tasa_ahorro = (ahorro_neto / total_ingresos * 100) if total_ingresos > 0 else 0
+        
+        # Score promedio de gastos
+        score_promedio = pd.to_numeric(df_gastos['Score'], errors='coerce').mean() if not df_gastos.empty and 'Score' in df_gastos.columns else 0
+        
+        # ============================================================
+        # KPIs PRINCIPALES
+        # ============================================================
+        k1, k2, k3, k4 = st.columns(4)
+        
+        k1.metric("💰 Ingresos", f"${total_ingresos:,.0f}")
+        k2.metric("💸 Gastos", f"${total_gastos:,.0f}")
+        k3.metric("🐷 Ahorro Neto", f"${ahorro_neto:,.0f}", 
+                 delta=f"{tasa_ahorro:.1f}% tasa",
+                 delta_color="normal" if ahorro_neto >= 0 else "inverse")
+        k4.metric("📊 Score IA", f"{score_promedio:.1f}/5.0" if score_promedio else "N/A")
+        
+        # Segunda fila de KPIs (Deudas)
+        k5, k6, k7, k8 = st.columns(4)
+        k5.metric("🟢 Me Deben", f"${me_deben:,.0f}")
+        k6.metric("🔴 Yo Debo", f"${yo_debo:,.0f}")
+        k7.metric("📈 Balance Deuda", f"${me_deben - yo_debo:,.0f}",
+                 delta="A favor" if me_deben >= yo_debo else "En contra",
+                 delta_color="normal" if me_deben >= yo_debo else "inverse")
+        k8.metric("📋 Total Registros", len(df_gastos) + len(df_ingresos) + len(df_deudas))
+        
+        st.divider()
+        
+        # ============================================================
+        # GRÁFICOS PROFESIONALES
+        # ============================================================
+        tab_flujo, tab_categorias, tab_tendencia = st.tabs(["💵 Flujo de Caja", "📊 Categorías", "📈 Tendencia"])
+        
+        with tab_flujo:
+            col_bar, col_gauge = st.columns(2)
+            
+            with col_bar:
+                # Gráfico de barras Ingresos vs Egresos
+                fig_bar = px.bar(
+                    x=["Ingresos", "Gastos"],
+                    y=[total_ingresos, total_gastos],
+                    color=["Ingresos", "Gastos"],
+                    color_discrete_map={"Ingresos": "#22c55e", "Gastos": "#ef4444"},
+                    title="Ingresos vs Gastos"
+                )
+                fig_bar.update_layout(template="plotly_dark", showlegend=False)
+                st.plotly_chart(fig_bar, use_container_width=True)
+            
+            with col_gauge:
+                # Gauge de tasa de ahorro
+                import plotly.graph_objects as go
+                fig_gauge = go.Figure(go.Indicator(
+                    mode="gauge+number+delta",
+                    value=tasa_ahorro,
+                    domain={'x': [0, 1], 'y': [0, 1]},
+                    title={'text': "Tasa de Ahorro (%)"},
+                    delta={'reference': 20},  # Meta: 20% de ahorro
+                    gauge={
+                        'axis': {'range': [0, 100]},
+                        'bar': {'color': "#3b82f6"},
+                        'steps': [
+                            {'range': [0, 10], 'color': "#ef4444"},
+                            {'range': [10, 20], 'color': "#f59e0b"},
+                            {'range': [20, 100], 'color': "#22c55e"}
+                        ],
+                        'threshold': {
+                            'line': {'color': "white", 'width': 4},
+                            'thickness': 0.75,
+                            'value': 20
+                        }
+                    }
+                ))
+                fig_gauge.update_layout(template="plotly_dark", height=300)
+                st.plotly_chart(fig_gauge, use_container_width=True)
+        
+        with tab_categorias:
+            if not df_gastos.empty and 'Categoria' in df_gastos.columns:
+                gastos_cat = df_gastos.groupby('Categoria')['Monto'].sum().reset_index()
+                gastos_cat = gastos_cat.sort_values('Monto', ascending=False)
+                
+                col_pie, col_bars = st.columns(2)
+                
+                with col_pie:
+                    fig_pie = px.pie(gastos_cat, values='Monto', names='Categoria', 
+                                     hole=0.4, title="Distribución de Gastos")
+                    fig_pie.update_layout(template="plotly_dark")
+                    st.plotly_chart(fig_pie, use_container_width=True)
+                
+                with col_bars:
+                    fig_hbar = px.bar(gastos_cat.head(5), x='Monto', y='Categoria', 
+                                      orientation='h', title="Top 5 Categorías",
+                                      color='Monto', color_continuous_scale='Reds')
+                    fig_hbar.update_layout(template="plotly_dark", showlegend=False)
+                    st.plotly_chart(fig_hbar, use_container_width=True)
+            else:
+                st.info("No hay datos de gastos para mostrar.")
+        
+        with tab_tendencia:
+            # Combinar ingresos y gastos por fecha
+            df_trend = pd.DataFrame()
+            
+            if not df_gastos.empty and 'Fecha' in df_gastos.columns:
+                df_g = df_gastos.copy()
+                df_g['Fecha'] = pd.to_datetime(df_g['Fecha'], errors='coerce')
+                df_g = df_g.dropna(subset=['Fecha'])
+                df_g = df_g.groupby(df_g['Fecha'].dt.to_period('M')).agg({'Monto': 'sum'}).reset_index()
+                df_g['Fecha'] = df_g['Fecha'].astype(str)
+                df_g['Tipo'] = 'Gastos'
+                df_trend = pd.concat([df_trend, df_g])
+            
+            if not df_ingresos.empty and 'Fecha' in df_ingresos.columns:
+                df_i = df_ingresos.copy()
+                df_i['Fecha'] = pd.to_datetime(df_i['Fecha'], errors='coerce')
+                df_i = df_i.dropna(subset=['Fecha'])
+                df_i = df_i.groupby(df_i['Fecha'].dt.to_period('M')).agg({'Monto': 'sum'}).reset_index()
+                df_i['Fecha'] = df_i['Fecha'].astype(str)
+                df_i['Tipo'] = 'Ingresos'
+                df_trend = pd.concat([df_trend, df_i])
+            
+            if not df_trend.empty:
+                fig_line = px.line(df_trend, x='Fecha', y='Monto', color='Tipo',
+                                   markers=True, title="Tendencia Mensual",
+                                   color_discrete_map={'Ingresos': '#22c55e', 'Gastos': '#ef4444'})
+                fig_line.update_layout(template="plotly_dark")
+                st.plotly_chart(fig_line, use_container_width=True)
+            else:
+                st.info("No hay suficientes datos para mostrar tendencia.")
+        
+        st.divider()
+        
+        # ============================================================
+        # ÚLTIMOS MOVIMIENTOS
+        # ============================================================
+        st.subheader("📋 Últimos Movimientos")
+        
+        movimientos = []
+        
+        if not df_gastos.empty:
+            for _, row in df_gastos.tail(5).iterrows():
+                movimientos.append({
+                    'Fecha': row.get('Fecha', ''),
+                    'Tipo': '💸 Gasto',
+                    'Concepto': row.get('Concepto', ''),
+                    'Monto': f"-${row.get('Monto', 0):,.0f}",
+                    'Divisa': row.get('Divisa', 'COP')
+                })
+        
+        if not df_ingresos.empty:
+            for _, row in df_ingresos.tail(5).iterrows():
+                movimientos.append({
+                    'Fecha': row.get('Fecha', ''),
+                    'Tipo': '💰 Ingreso',
+                    'Concepto': row.get('Concepto', ''),
+                    'Monto': f"+${row.get('Monto', 0):,.0f}",
+                    'Divisa': row.get('Divisa', 'COP')
+                })
+        
+        if movimientos:
+            df_mov = pd.DataFrame(movimientos)
+            df_mov = df_mov.sort_values('Fecha', ascending=False).head(10)
+            st.dataframe(df_mov, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay movimientos registrados.")
+                
     except Exception as e:
         st.error(f"Error calculando balance: {e}")
+        import traceback
+        st.code(traceback.format_exc())
 
     # ============================================================
     # RENDERIZADO DE MÓDULOS
@@ -660,7 +1054,7 @@ def render_balance():
     
     # ... (ingresos y deudas ya definidos arriba) ...
 
-@st.dialog("� Registrar Nuevo Gasto")
+@st.dialog("💸 Registrar Nuevo Gasto")
 def dialog_gasto():
     with st.form("formulario_gasto_modal"):
         fecha = st.date_input("📅 Fecha")
@@ -686,30 +1080,38 @@ def dialog_gasto():
         submit = st.form_submit_button("💾 Registrar", use_container_width=True)
         
         if submit:
-            if concepto and monto > 0:
+            # Validación completa
+            es_valido, errores = validar_formulario_gasto(fecha, concepto, monto, divisa, categoria)
+            
+            if not es_valido:
+                st.error("❌ Por favor corrige los siguientes errores:")
+                for error in errores:
+                    st.warning(error)
+            else:
                 try:
+                    # Sanitizar texto antes de guardar
+                    concepto_limpio = sanitizar_texto(concepto)
+                    
                     # ANALISIS IA
                     score, justificacion, cat_sug, color = 3, "Manual", categoria, "#808080"
-                    if concepto:
-                        try:
-                            from auditor import auditar_gasto
-                            score, justificacion, cat_sug, color = auditar_gasto(concepto, monto, divisa)
-                        except: pass
+                    try:
+                        from auditor import auditar_gasto
+                        score, justificacion, cat_sug, color = auditar_gasto(concepto_limpio, monto, divisa)
+                    except Exception as e:
+                        pass  # Si falla IA, usar valores por defecto
                         
                     ws = connect_sheets(0)
                     ws.append_row([
-                        str(fecha), concepto, monto, divisa, categoria,
+                        str(fecha), concepto_limpio, monto, divisa, categoria,
                         "Manual", "Efectivo", "N/A", score, justificacion,
                         recurrencia, "SÍ" if c_alert else "NO"
                     ])
-                    st.toast(f"✅ Gasto guardado: {concepto}")
+                    st.toast(f"✅ Gasto guardado: {concepto_limpio}")
                     st.cache_data.clear()
                     time.sleep(1)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
-            else:
-                st.warning("Completa campos básicos.")
+                    st.error(f"Error guardando: {e}")
 
 def formatear_moneda(monto, divisa):
     if divisa == "COP":
@@ -783,18 +1185,132 @@ def render_egresos():
         t1, t2 = st.tabs(["📊 Categorías", "📅 Tendencia"])
         with t1:
             if 'Categoria' in df.columns:
-                gastos_cat = df.groupby('Categoria')['Monto'].sum().reset_index() # Simplificado
-                st.bar_chart(gastos_cat.set_index('Categoria'))
+                gastos_cat = df.groupby('Categoria')['Monto'].sum().reset_index()
+                fig_pie = px.pie(gastos_cat, values='Monto', names='Categoria', 
+                                 hole=0.4, title="Distribución por Categoría")
+                fig_pie.update_layout(template="plotly_dark")
+                st.plotly_chart(fig_pie, use_container_width=True)
         
         with t2:
             if 'Fecha' in df.columns:
-                st.line_chart(df.set_index('Fecha')['Monto']) # Simplificado visual
+                df_trend = df.copy()
+                df_trend['Fecha'] = pd.to_datetime(df_trend['Fecha'], errors='coerce')
+                df_trend = df_trend.dropna(subset=['Fecha']).sort_values('Fecha')
+                if not df_trend.empty:
+                    fig_line = px.line(df_trend, x='Fecha', y='Monto', markers=True,
+                                       title="Tendencia de Gastos")
+                    fig_line.update_layout(template="plotly_dark")
+                    st.plotly_chart(fig_line, use_container_width=True)
         
         st.divider()
         
-        # --- Tabla --- 
+        # --- Tabla Interactiva con Selección --- 
         st.subheader("📝 Detalle de Gastos")
-        st.dataframe(df, use_container_width=True)
+        
+        # Agregar índice de fila para referencia
+        df_display = df.copy()
+        df_display.insert(0, 'Fila', range(2, len(df) + 2))  # +2 porque Sheet es 1-indexed + header
+        
+        # Columnas a mostrar
+        cols_display = ['Fila', 'Fecha', 'Concepto', 'Monto', 'Divisa', 'Categoria', 'Score', 'Justificacion']
+        cols_existentes = [c for c in cols_display if c in df_display.columns]
+        
+        # Selector de fila para acciones
+        st.markdown("**Selecciona una fila para editar o eliminar:**")
+        
+        col_select, col_edit, col_delete = st.columns([2, 1, 1])
+        
+        with col_select:
+            filas_disponibles = df_display['Fila'].tolist()
+            fila_seleccionada = st.selectbox(
+                "Fila #", 
+                options=filas_disponibles,
+                format_func=lambda x: f"Fila {x}: {df_display[df_display['Fila']==x]['Concepto'].values[0] if len(df_display[df_display['Fila']==x]) > 0 else 'N/A'}",
+                key="selector_fila_egreso"
+            )
+        
+        with col_edit:
+            if st.button("✏️ Editar", use_container_width=True, key="btn_editar_egreso"):
+                st.session_state['editar_fila_egreso'] = fila_seleccionada
+                st.session_state['datos_fila_egreso'] = df_display[df_display['Fila'] == fila_seleccionada].iloc[0].to_dict()
+        
+        with col_delete:
+            if st.button("🗑️ Eliminar", use_container_width=True, type="secondary", key="btn_eliminar_egreso"):
+                st.session_state['eliminar_fila_egreso'] = fila_seleccionada
+        
+        # Modal de Edición
+        if 'editar_fila_egreso' in st.session_state and st.session_state.get('editar_fila_egreso'):
+            fila = st.session_state['editar_fila_egreso']
+            datos = st.session_state.get('datos_fila_egreso', {})
+            
+            with st.form(f"form_editar_egreso_{fila}"):
+                st.markdown(f"### ✏️ Editando Fila {fila}")
+                
+                new_fecha = st.date_input("Fecha", value=pd.to_datetime(datos.get('Fecha', datetime.now())).date())
+                new_concepto = st.text_input("Concepto", value=datos.get('Concepto', ''))
+                
+                c1, c2 = st.columns(2)
+                new_divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], 
+                                          index=["COP", "USD", "EUR"].index(datos.get('Divisa', 'COP')))
+                new_monto = c2.number_input("Monto", value=float(datos.get('Monto', 0)), min_value=0.0)
+                
+                new_categoria = st.selectbox("Categoría", 
+                    ["Comida", "Transporte", "Ocio", "Servicios", "Salud", "Ropa", "Educación", "Ahorro", "Otro"],
+                    index=["Comida", "Transporte", "Ocio", "Servicios", "Salud", "Ropa", "Educación", "Ahorro", "Otro"].index(datos.get('Categoria', 'Otro')) if datos.get('Categoria') in ["Comida", "Transporte", "Ocio", "Servicios", "Salud", "Ropa", "Educación", "Ahorro", "Otro"] else 8
+                )
+                
+                col_save, col_cancel = st.columns(2)
+                if col_save.form_submit_button("💾 Guardar Cambios", use_container_width=True):
+                    try:
+                        ws = connect_sheets(0)
+                        # Actualizar celdas individuales (más seguro que batch)
+                        ws.update_cell(fila, 1, str(new_fecha))  # Fecha
+                        ws.update_cell(fila, 2, new_concepto)     # Concepto
+                        ws.update_cell(fila, 3, new_monto)        # Monto
+                        ws.update_cell(fila, 4, new_divisa)       # Divisa
+                        ws.update_cell(fila, 5, new_categoria)    # Categoria
+                        
+                        st.success("✅ Registro actualizado correctamente")
+                        st.session_state.pop('editar_fila_egreso', None)
+                        st.session_state.pop('datos_fila_egreso', None)
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error actualizando: {e}")
+                
+                if col_cancel.form_submit_button("❌ Cancelar", use_container_width=True):
+                    st.session_state.pop('editar_fila_egreso', None)
+                    st.session_state.pop('datos_fila_egreso', None)
+                    st.rerun()
+        
+        # Modal de Eliminación
+        if 'eliminar_fila_egreso' in st.session_state and st.session_state.get('eliminar_fila_egreso'):
+            fila = st.session_state['eliminar_fila_egreso']
+            concepto_eliminar = df_display[df_display['Fila'] == fila]['Concepto'].values[0] if len(df_display[df_display['Fila'] == fila]) > 0 else 'este registro'
+            
+            st.warning(f"⚠️ ¿Estás seguro de eliminar **{concepto_eliminar}** (Fila {fila})?")
+            
+            col_confirm, col_cancel = st.columns(2)
+            if col_confirm.button("🗑️ Confirmar Eliminación", use_container_width=True, type="primary"):
+                try:
+                    ws = connect_sheets(0)
+                    ws.delete_rows(fila)
+                    st.success("✅ Registro eliminado")
+                    st.session_state.pop('eliminar_fila_egreso', None)
+                    st.cache_data.clear()
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error eliminando: {e}")
+            
+            if col_cancel.button("❌ Cancelar", use_container_width=True):
+                st.session_state.pop('eliminar_fila_egreso', None)
+                st.rerun()
+        
+        # Mostrar tabla de solo lectura
+        st.dataframe(df_display[cols_existentes], use_container_width=True, height=400)
+
         
         # ============================================================
         # NOTIFICACIONES DE PAGOS RECURRENTES
@@ -952,4 +1468,5 @@ elif modulo == "💰 Ingresos":
     render_ingresos()
 elif modulo == "💸 Egresos":
     render_egresos()
-
+elif modulo == "🤝 Deudas":
+    render_deudas()
