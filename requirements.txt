@@ -1,0 +1,9 @@
+gspread
+google-generativeai
+python-dotenv
+colorama
+streamlit
+pandas
+plotly
+requests
+pytest

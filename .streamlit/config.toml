@@ -1,0 +1,17 @@
+# ============================================================
+# Configuración de Streamlit Cloud
+# ============================================================
+# Este archivo configura opciones del servidor y tema
+
+[server]
+headless = true
+port = 8501
+
+[theme]
+primaryColor = "#e94560"
+backgroundColor = "#1a1a2e"
+secondaryBackgroundColor = "#16213e"
+textColor = "#eaeaea"
+
+[browser]
+gatherUsageStats = false
