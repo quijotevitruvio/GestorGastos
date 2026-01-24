@@ -39,19 +39,19 @@ st.set_page_config(page_title="Ge$torGasto$", page_icon="assets/logo.jpg", layou
 st.markdown("""
 <style>
     /* ============================================
-       TEMA OSCURO LIMPIO - Alta Legibilidad
+       TEMA OSCURO PREMIUM - Alta Legibilidad & Confort
        ============================================ */
     
     /* Variables de colores */
     :root {
-        --bg-primary: #0f0f0f;
-        --bg-secondary: #1a1a1a;
-        --bg-card: #252525;
-        --accent: #4ade80;
+        --bg-primary: #121212;  /* Negro suave */
+        --bg-secondary: #1e1e1e; /* Gris muy oscuro */
+        --bg-card: #2d2d2d;     /* Gris tarjeta */
+        --accent: #4ade80;      /* Verde vibrante */
         --accent-hover: #22c55e;
-        --text-primary: #ffffff;
-        --text-secondary: #a3a3a3;
-        --border: #333333;
+        --text-primary: #f0f0f0; /* Blanco humo */
+        --text-secondary: #a0a0a0;
+        --border: #404040;
     }
     
     /* Fondo principal */
@@ -59,146 +59,117 @@ st.markdown("""
         background-color: var(--bg-primary) !important;
     }
     
-    /* Texto general - ALTA VISIBILIDAD */
+    /* Texto general - Mayor altura de línea para lectura cómoda */
     .stApp, .stApp p, .stApp span, .stApp label, .stApp div {
         color: var(--text-primary) !important;
+        line-height: 1.6 !important;
     }
     
-    /* Métricas KPI - Cards limpias */
+    /* Métricas KPI - Cards más espaciadas */
     [data-testid="stMetric"] {
         background-color: var(--bg-card) !important;
-        padding: 20px !important;
-        border-radius: 12px !important;
+        padding: 24px !important; /* Más padding interno */
+        border-radius: 16px !important; /* Bordes más suaves */
         border: 1px solid var(--border) !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important; /* Sombra sutil */
     }
     
     [data-testid="stMetricValue"] {
         color: var(--accent) !important;
-        font-size: 1.6rem !important;
+        font-size: 1.8rem !important; /* Números más grandes */
         font-weight: 700 !important;
     }
     
     [data-testid="stMetricLabel"] {
         color: var(--text-secondary) !important;
-        font-size: 0.85rem !important;
+        font-size: 0.9rem !important;
         font-weight: 500 !important;
+        letter-spacing: 0.5px !important;
     }
     
-    [data-testid="stMetricDelta"] {
-        color: #f87171 !important;
-    }
-    
-    /* Botones - Verdes limpios */
+    /* Botones - Más "clickeables" */
     .stButton > button {
         background-color: var(--accent) !important;
         color: #000000 !important;
         border: none !important;
-        border-radius: 8px !important;
-        padding: 10px 20px !important;
-        font-weight: 600 !important;
-        transition: all 0.2s ease !important;
+        border-radius: 12px !important;
+        padding: 12px 28px !important; /* Botones más grandes */
+        font-weight: 700 !important;
+        font-size: 1rem !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        width: 100% !important; /* Ocupar ancho disponible en sidebar */
     }
     
     .stButton > button:hover {
         background-color: var(--accent-hover) !important;
-        box-shadow: 0 4px 12px rgba(74, 222, 128, 0.3) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 16px rgba(74, 222, 128, 0.25) !important;
     }
     
-    /* Sidebar - Fondo oscuro limpio */
+    /* Sidebar - Separación visual */
     [data-testid="stSidebar"] {
         background-color: var(--bg-secondary) !important;
+        border-right: 1px solid var(--border) !important;
     }
     
-    [data-testid="stSidebar"] h1,
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h3,
-    [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] span,
-    [data-testid="stSidebar"] p {
-        color: var(--text-primary) !important;
-    }
-    
-    /* Inputs - Fondos oscuros con texto claro */
-    input, textarea, select {
+    /* Inputs - Más altos y cómodos */
+    input, textarea, select, .stDateInput > div > div, .stNumberInput > div > div {
         background-color: var(--bg-card) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 8px !important;
+        border-radius: 10px !important;
+        padding: 8px 12px !important; /* Más espacio interno en inputs */
+        min-height: 48px !important; /* Altura mínima táctil */
     }
     
     .stSelectbox > div > div,
     .stMultiSelect > div > div {
         background-color: var(--bg-card) !important;
-        color: var(--text-primary) !important;
+        border-radius: 10px !important;
+        min-height: 48px !important;
     }
     
-    /* Expanders */
+    /* Expanders - Limpios */
     .streamlit-expanderHeader {
         background-color: var(--bg-card) !important;
-        color: var(--text-primary) !important;
-        border-radius: 8px !important;
+        border-radius: 10px !important;
+        padding: 16px !important;
+        border: 1px solid var(--border) !important;
+        margin-bottom: 10px !important;
     }
     
-    /* Progress bars */
+    /* Progress bars - Modernas */
     .stProgress > div > div {
         background-color: var(--accent) !important;
+        border-radius: 8px !important;
+        height: 12px !important; /* Barras más gruesas */
     }
     
-    /* Títulos */
-    h1, h2, h3, h4 {
-        color: var(--text-primary) !important;
-        font-weight: 700 !important;
-    }
-    
+    /* Títulos con mejor jerarquía */
     h1 {
-        color: var(--accent) !important;
+        font-size: 2.2rem !important;
+        margin-bottom: 1.5rem !important;
     }
-    
-    /* Subheaders */
-    .stSubheader {
-        color: var(--text-primary) !important;
-    }
-    
-    /* Alertas */
-    .stAlert {
-        background-color: var(--bg-card) !important;
-        border-left: 4px solid var(--accent) !important;
-        color: var(--text-primary) !important;
-    }
-    
-    /* Dividers */
-    hr {
-        border-color: var(--border) !important;
-    }
-    
-    /* DataFrames */
-    .stDataFrame {
-        background-color: var(--bg-card) !important;
-    }
-    
-    /* Sliders */
-    .stSlider label {
-        color: var(--text-primary) !important;
+    h2 {
+        font-size: 1.6rem !important;
+        margin-top: 2rem !important;
+        margin-bottom: 1rem !important;
     }
     
     /* ============================================
-       RESPONSIVE - Mobile
+       RESPONSIVE - Mobile Improvements
        ============================================ */
-    
     @media (max-width: 768px) {
         [data-testid="stMetric"] {
-            padding: 14px !important;
-        }
-        
-        [data-testid="stMetricValue"] {
-            font-size: 1.3rem !important;
+            padding: 18px !important;
+            margin-bottom: 10px !important;
         }
         
         .stButton > button {
-            padding: 14px 16px !important;
-            font-size: 0.95rem !important;
+            padding: 16px 20px !important; /* Botones táctiles grandes */
+            font-size: 1.1rem !important;
         }
-        
+    }    
         h1 {
             font-size: 1.4rem !important;
         }
