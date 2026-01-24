@@ -167,6 +167,40 @@ def process_expense(model, concepto, monto, divisa, categoria, lugar, medio_pago
         return None
 
 
+def auditar_gasto(concepto, monto, divisa="COP"):
+    """
+    Audita un gasto individual para uso en tiempo real.
+    
+    Args:
+        concepto: Descripción del gasto
+        monto: Cantidad gastada
+        divisa: Código de divisa
+        
+    Returns:
+        Tuple (score, justificacion, categoria_sugerida, color)
+    """
+    try:
+        model = configure_gemini()
+        result = process_expense(
+            model, concepto, monto, divisa, 
+            "General", "Desconocido", "Efectivo", "N/A", 
+            datetime.now().strftime("%Y-%m-%d")
+        )
+        
+        if result:
+            return (
+                result.get('score', 3),
+                result.get('justificacion', 'Análisis automático'),
+                result.get('categoria_sugerida', 'Otro'),
+                result.get('color', '#808080')
+            )
+    except Exception as e:
+        print(f"Error en auditar_gasto: {e}")
+    
+    # Valores por defecto si falla
+    return (3, "Sin análisis IA", "Otro", "#808080")
+
+
 def run_audit():
     """
     Ejecuta la auditoría completa de todos los gastos pendientes.
@@ -175,10 +209,10 @@ def run_audit():
     guardando los resultados y el timestamp de auditoría.
     
     Returns:
-        dict con estadísticas: {"processed": N, "errors": N}
+        dict con estadísticas: {"processed": N, "updated": N, "errors": N}
     """
     print("🚀 Iniciando Auditor Financiero IA...")
-    stats = {"processed": 0, "errors": 0}
+    stats = {"processed": 0, "updated": 0, "errors": 0}
     
     try:
         model = configure_gemini()
@@ -241,19 +275,26 @@ def run_audit():
                 try:
                     # Guardar resultados en la hoja
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+                    updates = 0
                     
                     if col_score: 
                         sheet.update_cell(actual_row_idx, col_score, result['score'])
+                        updates += 1
                     if col_just: 
                         sheet.update_cell(actual_row_idx, col_just, result['justificacion'])
+                        updates += 1
                     if col_color: 
                         sheet.update_cell(actual_row_idx, col_color, result['color'])
+                        updates += 1
                     if col_sug: 
                         sheet.update_cell(actual_row_idx, col_sug, result['categoria_sugerida'])
+                        updates += 1
                     if col_fecha_audit:
                         sheet.update_cell(actual_row_idx, col_fecha_audit, timestamp)
+                        updates += 1
                     
                     stats["processed"] += 1
+                    stats["updated"] += updates
                     
                 except Exception as e:
                     print(f"❌ Error actualizando hoja: {e}")

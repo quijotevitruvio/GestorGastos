@@ -429,16 +429,63 @@ def render_ingresos():
 
             st.divider()
             
-            # --- Tabla Interactiva ---
-            st.subheader("Historial")
+            # --- Vista Tarjetas / Tabla ---
+            st.subheader("📋 Historial de Ingresos")
+            
+            # Toggle vista
+            vista_ing = st.radio("Vista:", ["🃏 Tarjetas", "📋 Tabla"], horizontal=True, index=0, key="vista_ingresos")
             
             df_display = df.copy()
             df_display.insert(0, 'Fila', range(2, len(df) + 2))
             
+            if vista_ing == "🃏 Tarjetas":
+                # Vista de Tarjetas para Ingresos
+                cols = st.columns(3)
+                for idx, (_, row) in enumerate(df_display.iterrows()):
+                    with cols[idx % 3]:
+                        fuente = row.get('Fuente', 'Otros')
+                        
+                        # Colores según fuente
+                        colores_fuente = {
+                            'Nómina': '#00ff88',
+                            'Negocio': '#00d4ff', 
+                            'Inversión': '#aa00ff',
+                            'Regalo': '#ff00aa',
+                            'Otros': '#ffaa00'
+                        }
+                        border_color = colores_fuente.get(fuente, '#00ff88')
+                        
+                        fecha_str = str(row.get('Fecha', ''))[:10] if row.get('Fecha') else ''
+                        
+                        st.markdown(f"""
+                        <div style="
+                            background: #111;
+                            border: 2px solid {border_color};
+                            border-radius: 12px;
+                            padding: 16px;
+                            margin-bottom: 12px;
+                            box-shadow: 0 0 15px {border_color}33;
+                        ">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="background: {border_color}22; color: {border_color}; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                                    {fuente}
+                                </span>
+                                <span style="color: #666; font-size: 0.8rem;">Fila {row.get('Fila', '')}</span>
+                            </div>
+                            <h4 style="margin: 8px 0; color: #fff;">{row.get('Concepto', 'Sin concepto')[:35]}</h4>
+                            <p style="font-size: 1.5rem; font-weight: 700; color: {border_color}; margin: 4px 0;">
+                                +{formatear_moneda(row.get('Monto', 0), row.get('Divisa', 'COP'))}
+                            </p>
+                            <small style="color: #666;">📅 {fecha_str}</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                st.divider()
+            
             cols_display = ['Fila', 'Fecha', 'Concepto', 'Monto', 'Divisa', 'Fuente', 'Recurrencia']
             cols_existentes = [c for c in cols_display if c in df_display.columns]
             
-            st.markdown("**Selecciona una fila para editar o eliminar:**")
+            st.markdown("**Acciones:**")
             
             col_select, col_edit, col_delete = st.columns([2, 1, 1])
             
@@ -531,8 +578,9 @@ def render_ingresos():
                     st.session_state.pop('eliminar_fila_ingreso', None)
                     st.rerun()
             
-            # Tabla
-            st.dataframe(df_display[cols_existentes], use_container_width=True, height=400)
+            # Tabla solo si está seleccionada
+            if vista_ing == "📋 Tabla":
+                st.dataframe(df_display[cols_existentes], use_container_width=True, height=400)
         else:
             st.info("ℹ️ No hay ingresos registrados. Pulsa el botón para agregar uno.")
             
@@ -643,18 +691,72 @@ def render_deudas():
                 
             st.divider()
             
-            # --- Tabla Interactiva ---
+            # --- Vista Tarjetas / Tabla ---
             st.subheader("📋 Detalle de Obligaciones")
             
-            # Preparar datos para mostrar
+            # Toggle vista
+            vista_deuda = st.radio("Vista:", ["🃏 Tarjetas", "📋 Tabla"], horizontal=True, index=0, key="vista_deudas")
+            
             df_display = df.copy()
-            # Obtener índices de fila originales
             df_display.insert(0, 'Fila', range(2, len(df) + 2))
+            
+            if vista_deuda == "🃏 Tarjetas":
+                # Vista de Tarjetas para Deudas
+                cols = st.columns(3)
+                for idx, (_, row) in enumerate(df_display.iterrows()):
+                    with cols[idx % 3]:
+                        tipo = row.get('Tipo', 'YO_DEBO')
+                        estado = row.get('Estado', 'PENDIENTE')
+                        
+                        # Color según tipo
+                        if tipo == 'ME_DEBEN':
+                            border_color = "#00ff88"  # Verde
+                            tipo_label = "📥 Me Deben"
+                            signo = "+"
+                        else:
+                            border_color = "#ff3355"  # Rojo
+                            tipo_label = "📤 Yo Debo"
+                            signo = "-"
+                        
+                        # Estado badge
+                        estado_color = "#00ff88" if estado == "PAGADO" else "#ffaa00"
+                        estado_label = "✅ Pagado" if estado == "PAGADO" else "⏳ Pendiente"
+                        
+                        st.markdown(f"""
+                        <div style="
+                            background: #111;
+                            border: 2px solid {border_color};
+                            border-radius: 12px;
+                            padding: 16px;
+                            margin-bottom: 12px;
+                            box-shadow: 0 0 15px {border_color}33;
+                            opacity: {'0.5' if estado == 'PAGADO' else '1'};
+                        ">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="background: {border_color}22; color: {border_color}; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;">
+                                    {tipo_label}
+                                </span>
+                                <span style="background: {estado_color}22; color: {estado_color}; padding: 4px 8px; border-radius: 12px; font-size: 0.7rem;">
+                                    {estado_label}
+                                </span>
+                            </div>
+                            <h4 style="margin: 8px 0; color: #fff;">👤 {row.get('Persona', 'Sin persona')[:25]}</h4>
+                            <p style="font-size: 1.3rem; font-weight: 700; color: {border_color}; margin: 4px 0;">
+                                {signo}{formatear_moneda(row.get('MontoOriginal', 0), row.get('Divisa', 'COP'))}
+                            </p>
+                            <small style="color: #888;">{row.get('Concepto', '')[:40]}</small>
+                            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #222;">
+                                <small style="color: #666;">📅 Vence: {row.get('FechaLimite', 'N/A')} | Fila {row.get('Fila', '')}</small>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                st.divider()
             
             cols_display = ['Fila', 'Tipo', 'Persona', 'Concepto', 'MontoOriginal', 'Divisa', 'Estado', 'FechaLimite']
             cols_existentes = [c for c in cols_display if c in df_display.columns]
             
-            st.markdown("**Selecciona una fila para acciones:**")
+            st.markdown("**Acciones:**")
             
             col_select, col_edit, col_status, col_delete = st.columns([2, 1, 1, 1])
             
@@ -760,8 +862,9 @@ def render_deudas():
                     st.session_state.pop('eliminar_fila_deuda', None)
                     st.rerun()
             
-            # Tabla
-            st.dataframe(df_display[cols_existentes], use_container_width=True, height=400)
+            # Tabla solo si está seleccionada
+            if vista_deuda == "📋 Tabla":
+                st.dataframe(df_display[cols_existentes], use_container_width=True, height=400)
                     
         else:
             st.info("ℹ️ No hay deudas registradas. Usa el botón superior.")
@@ -1040,39 +1143,42 @@ def formatear_moneda(monto, divisa):
     return f"{monto:,.2f} {divisa}"
 
 def render_egresos():
-    col_layout, _ = st.columns([1, 4])
-    if col_layout.button("➕ Registrar Nuevo Gasto", use_container_width=True, type="primary"):
-        dialog_gasto()
+    # ============================================================
+    # BARRA DE ACCIONES PRINCIPAL
+    # ============================================================
+    col_add, col_audit, _ = st.columns([1, 1, 3])
     
-    # ============================================================
-    # PANEL DE CONTROL (FILTROS)
-    # ============================================================
-    with st.expander("🔍 Filtros y Herramientas", expanded=False):
-        f1, f2, f3 = st.columns(3)
-        filtro_mes = f1.date_input("📅 Rango", [])
-        filtro_cat = f2.multiselect("📁 Categorías", ["Comida", "Transporte", "Ocio", "Servicios", "Salud", "Ropa", "Educación", "Ahorro", "Otro"])
-        
-        if f3.button("🚀 Auditar Todo (IA)", use_container_width=True):
-            with st.spinner("Analizando..."):
+    with col_add:
+        if st.button("➕ Nuevo Gasto", use_container_width=True, type="primary"):
+            dialog_gasto()
+    
+    with col_audit:
+        if st.button("🤖 Auditar con IA", use_container_width=True):
+            with st.spinner("🔍 Analizando gastos con Gemini..."):
                 try:
                     from auditor import run_audit
                     stats = run_audit()
-                    st.success(f"Analizados: {stats['processed']}")
+                    st.success(f"✅ Auditados: {stats['processed']} | Actualizados: {stats.get('updated', 0)}")
                     st.cache_data.clear()
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error en auditoría: {e}")
+    
+    # ============================================================
+    # FILTROS (colapsados)
+    # ============================================================
+    with st.expander("� Filtros", expanded=False):
+        f1, f2 = st.columns(2)
+        filtro_mes = f1.date_input("📅 Rango", [])
+        filtro_cat = f2.multiselect("📁 Categorías", ["Comida", "Transporte", "Ocio", "Servicios", "Salud", "Ropa", "Educación", "Ahorro", "Otro"])
 
     # ============================================================
-    # CONTENIDO PRINCIPAL: DASHBOARD (Full Width)
+    # CONTENIDO PRINCIPAL
     # ============================================================
     st.title("💸 Gestión de Egresos")
     
-    # ============================================================
-    # CARGA DE DATOS
-    # ============================================================
     @st.cache_data(ttl=60)
     def cargar_datos():
-        """Carga registros desde Google Sheets."""
         try:
             worksheet = connect_sheets()
             datos = worksheet.get_all_records()
@@ -1085,18 +1191,13 @@ def render_egresos():
     
     if not df.empty:
         # --- KPIs ---
-        # Calcular totales y conversiones (Lógica existente resumida)
-        total_cop = 0
-        if 'Monto' in df.columns:
-            total_cop = df[df['Divisa']=='COP']['Monto'].sum()
+        total_cop = df[df['Divisa']=='COP']['Monto'].sum() if 'Monto' in df.columns and 'Divisa' in df.columns else 0
+        prom_score = pd.to_numeric(df['Score'], errors='coerce').fillna(0).mean() if 'Score' in df.columns else 0
         
         k1, k2, k3 = st.columns(3)
-        k1.metric("Total Gastado (COP)", f"${total_cop:,.0f}")
-        k2.metric("Registros", len(df))
-        
-        if 'Score' in df.columns:
-             prom_score = pd.to_numeric(df['Score'], errors='coerce').fillna(0).mean()
-             k3.metric("Score Promedio", f"{prom_score:.1f}/5.0")
+        k1.metric("💰 Total (COP)", f"${total_cop:,.0f}")
+        k2.metric("📋 Registros", len(df))
+        k3.metric("📊 Score IA", f"{prom_score:.1f}/5.0" if prom_score else "Sin auditar")
 
         # --- Gráficos ---
         t1, t2 = st.tabs(["📊 Categorías", "📅 Tendencia"])
@@ -1121,19 +1222,67 @@ def render_egresos():
         
         st.divider()
         
-        # --- Tabla Interactiva con Selección --- 
+        # ============================================================
+        # VISTA TARJETAS / TABLA
+        # ============================================================
         st.subheader("📝 Detalle de Gastos")
         
-        # Agregar índice de fila para referencia
+        # Toggle vista
+        vista = st.radio("Vista:", ["🃏 Tarjetas", "📋 Tabla"], horizontal=True, index=0, key="vista_egresos")
+        
         df_display = df.copy()
-        df_display.insert(0, 'Fila', range(2, len(df) + 2))  # +2 porque Sheet es 1-indexed + header
+        df_display.insert(0, 'Fila', range(2, len(df) + 2))
         
-        # Columnas a mostrar
-        cols_display = ['Fila', 'Fecha', 'Concepto', 'Monto', 'Divisa', 'Categoria', 'Score', 'Justificacion']
-        cols_existentes = [c for c in cols_display if c in df_display.columns]
+        if vista == "🃏 Tarjetas":
+            # Vista de Tarjetas
+            cols = st.columns(3)
+            for idx, (_, row) in enumerate(df_display.iterrows()):
+                with cols[idx % 3]:
+                    # Color según score
+                    score = pd.to_numeric(row.get('Score', 0), errors='coerce') or 0
+                    if score >= 4:
+                        border_color = "#00ff88"  # Verde neón
+                        score_emoji = "✅"
+                    elif score >= 3:
+                        border_color = "#00d4ff"  # Azul neón
+                        score_emoji = "👍"
+                    elif score >= 2:
+                        border_color = "#ffaa00"  # Naranja
+                        score_emoji = "⚠️"
+                    else:
+                        border_color = "#ff3355"  # Rojo neón
+                        score_emoji = "❌"
+                    
+                    st.markdown(f"""
+                    <div style="
+                        background: #111;
+                        border: 2px solid {border_color};
+                        border-radius: 12px;
+                        padding: 16px;
+                        margin-bottom: 12px;
+                        box-shadow: 0 0 15px {border_color}33;
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="background: #222; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; color: #888;">
+                                {row.get('Categoria', 'Sin categoría')}
+                            </span>
+                            <span style="font-size: 1.2rem;">{score_emoji} {score:.1f}</span>
+                        </div>
+                        <h4 style="margin: 8px 0; color: #fff;">{row.get('Concepto', 'Sin concepto')[:30]}</h4>
+                        <p style="font-size: 1.4rem; font-weight: 700; color: {border_color}; margin: 4px 0;">
+                            {formatear_moneda(row.get('Monto', 0), row.get('Divisa', 'COP'))}
+                        </p>
+                        <small style="color: #666;">📅 {row.get('Fecha', '')} | Fila {row.get('Fila', '')}</small>
+                        <p style="color: #888; font-size: 0.8rem; margin-top: 8px; font-style: italic;">
+                            {str(row.get('Justificacion', ''))[:60]}{'...' if len(str(row.get('Justificacion', ''))) > 60 else ''}
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            st.divider()
         
-        # Selector de fila para acciones
-        st.markdown("**Selecciona una fila para editar o eliminar:**")
+        # Selector de fila para acciones (siempre visible)
+        st.markdown("**Acciones:**")
         
         col_select, col_edit, col_delete = st.columns([2, 1, 1])
         
@@ -1225,8 +1374,12 @@ def render_egresos():
                 st.session_state.pop('eliminar_fila_egreso', None)
                 st.rerun()
         
-        # Mostrar tabla de solo lectura
-        st.dataframe(df_display[cols_existentes], use_container_width=True, height=400)
+        # Mostrar tabla solo si está seleccionada
+        if vista == "📋 Tabla":
+            cols_display = ['Fila', 'Fecha', 'Concepto', 'Monto', 'Divisa', 'Categoria', 'Score', 'Justificacion']
+            cols_existentes = [c for c in cols_display if c in df_display.columns]
+            st.dataframe(df_display[cols_existentes], use_container_width=True, height=400)
+
 
         
         # ============================================================
