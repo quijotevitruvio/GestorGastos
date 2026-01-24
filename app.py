@@ -39,140 +39,191 @@ st.set_page_config(page_title="Ge$torGasto$", page_icon="assets/logo.jpg", layou
 st.markdown("""
 <style>
     /* ============================================
-       TEMA OSCURO PREMIUM - Alta Legibilidad & Confort
+       TEMA "CONTROL CENTER" - PREMIUM UX
+       Inspirado en interfaces Smart Home Dark Mode
        ============================================ */
     
-    /* Variables de colores */
+    /* Fuentes y Variables */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
     :root {
-        --bg-primary: #121212;  /* Negro suave */
-        --bg-secondary: #1e1e1e; /* Gris muy oscuro */
-        --bg-card: #2d2d2d;     /* Gris tarjeta */
-        --accent: #4ade80;      /* Verde vibrante */
-        --accent-hover: #22c55e;
-        --text-primary: #f0f0f0; /* Blanco humo */
-        --text-secondary: #a0a0a0;
-        --border: #404040;
+        /* Paleta Principal - Deep Dark Blue/Black */
+        --bg-app: #050505;          /* Fondo casi negro */
+        --bg-panel: #0a0a0a;        /* Sidebar un poco más claro */
+        --card-bg: #141414;         /* Tarjetas base */
+        --card-hover: #1f1f1f;
+        
+        /* Acentos - Electric Blue & Neon Green */
+        --primary: #3b82f6;         /* Azul eléctrico */
+        --primary-glow: rgba(59, 130, 246, 0.4);
+        --success: #10b981;         /* Verde neón */
+        --danger: #ef4444;          /* Rojo alerta */
+        
+        /* Texto */
+        --text-main: #ffffff;
+        --text-dim: #9ca3af;
+        
+        /* Bordes y Efectos */
+        --border-subtle: #262626;
+        --radius-lg: 20px;
+        --radius-md: 14px;
+        --radius-sm: 8px;
     }
     
-    /* Fondo principal */
+    /* Configuración General */
     .stApp {
-        background-color: var(--bg-primary) !important;
+        background-color: var(--bg-app) !important;
+        font-family: 'Inter', sans-serif !important;
     }
     
-    /* Texto general - Mayor altura de línea para lectura cómoda */
-    .stApp, .stApp p, .stApp span, .stApp label, .stApp div {
-        color: var(--text-primary) !important;
-        line-height: 1.6 !important;
+    /* Texto */
+    .stApp, p, span, label, div {
+        color: var(--text-main) !important;
+        letter-spacing: -0.01em !important;
     }
     
-    /* Métricas KPI - Cards más espaciadas */
-    [data-testid="stMetric"] {
-        background-color: var(--bg-card) !important;
-        padding: 24px !important; /* Más padding interno */
-        border-radius: 16px !important; /* Bordes más suaves */
-        border: 1px solid var(--border) !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2) !important; /* Sombra sutil */
-    }
-    
-    [data-testid="stMetricValue"] {
-        color: var(--accent) !important;
-        font-size: 1.8rem !important; /* Números más grandes */
+    h1, h2, h3 {
         font-weight: 700 !important;
-    }
-    
-    [data-testid="stMetricLabel"] {
-        color: var(--text-secondary) !important;
-        font-size: 0.9rem !important;
-        font-weight: 500 !important;
-        letter-spacing: 0.5px !important;
-    }
-    
-    /* Botones - Más "clickeables" */
-    .stButton > button {
-        background-color: var(--accent) !important;
-        color: #000000 !important;
-        border: none !important;
-        border-radius: 12px !important;
-        padding: 12px 28px !important; /* Botones más grandes */
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        width: 100% !important; /* Ocupar ancho disponible en sidebar */
-    }
-    
-    .stButton > button:hover {
-        background-color: var(--accent-hover) !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 16px rgba(74, 222, 128, 0.25) !important;
-    }
-    
-    /* Sidebar - Separación visual */
-    [data-testid="stSidebar"] {
-        background-color: var(--bg-secondary) !important;
-        border-right: 1px solid var(--border) !important;
-    }
-    
-    /* Inputs - Más altos y cómodos */
-    input, textarea, select, .stDateInput > div > div, .stNumberInput > div > div {
-        background-color: var(--bg-card) !important;
-        color: var(--text-primary) !important;
-        border: 1px solid var(--border) !important;
-        border-radius: 10px !important;
-        padding: 8px 12px !important; /* Más espacio interno en inputs */
-        min-height: 48px !important; /* Altura mínima táctil */
-    }
-    
-    .stSelectbox > div > div,
-    .stMultiSelect > div > div {
-        background-color: var(--bg-card) !important;
-        border-radius: 10px !important;
-        min-height: 48px !important;
-    }
-    
-    /* Expanders - Limpios */
-    .streamlit-expanderHeader {
-        background-color: var(--bg-card) !important;
-        border-radius: 10px !important;
-        padding: 16px !important;
-        border: 1px solid var(--border) !important;
-        margin-bottom: 10px !important;
-    }
-    
-    /* Progress bars - Modernas */
-    .stProgress > div > div {
-        background-color: var(--accent) !important;
-        border-radius: 8px !important;
-        height: 12px !important; /* Barras más gruesas */
-    }
-    
-    /* Títulos con mejor jerarquía */
-    h1 {
-        font-size: 2.2rem !important;
-        margin-bottom: 1.5rem !important;
-    }
-    h2 {
-        font-size: 1.6rem !important;
-        margin-top: 2rem !important;
-        margin-bottom: 1rem !important;
+        letter-spacing: -0.02em !important;
     }
     
     /* ============================================
-       RESPONSIVE - Mobile Improvements
+       COMPONENTES TIPO "WIDGET"
        ============================================ */
-    @media (max-width: 768px) {
-        [data-testid="stMetric"] {
-            padding: 18px !important;
-            margin-bottom: 10px !important;
-        }
-        
-        .stButton > button {
-            padding: 16px 20px !important; /* Botones táctiles grandes */
-            font-size: 1.1rem !important;
-        }
-    }    
-        h1 {
-            font-size: 1.4rem !important;
-        }
+       
+    /* Métricas KPI - Estilo "Glass Card" */
+    [data-testid="stMetric"] {
+        background: linear-gradient(145deg, var(--card-bg), #0f0f0f) !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: var(--radius-lg) !important;
+        padding: 24px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+        transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    }
+    
+    [data-testid="stMetric"]:hover {
+        border-color: #404040 !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4) !important;
+    }
+    
+    [data-testid="stMetricValue"] {
+        font-size: 2rem !important;
+        font-weight: 700 !important;
+        background: linear-gradient(90deg, #fff, #cbd5e1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        color: var(--text-dim) !important;
+        font-size: 0.9rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.05em !important;
+    }
+    
+    /* Botones - Estilo "Pill" Moderno */
+    .stButton > button {
+        background: var(--primary) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 100px !important; /* Pill shape */
+        padding: 12px 24px !important;
+        font-weight: 600 !important;
+        box-shadow: 0 0 15px var(--primary-glow) !important; /* Glow effect */
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        width: 100% !important;
+    }
+    
+    .stButton > button:hover {
+        background: #2563eb !important;
+        box-shadow: 0 0 25px var(--primary-glow) !important;
+        transform: scale(1.02) !important;
+    }
+    
+    /* Sidebar - Panel de Control Oscuro */
+    [data-testid="stSidebar"] {
+        background-color: var(--bg-panel) !important;
+        border-right: 1px solid var(--border-subtle) !important;
+    }
+    
+    /* Inputs - Minimalistas */
+    input, textarea, select, .stDateInput > div > div, .stNumberInput > div > div {
+        background-color: #171717 !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: var(--radius-md) !important;
+        color: white !important;
+        height: 50px !important;
+        transition: border-color 0.2s !important;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 1px var(--primary) !important;
+    }
+    
+    .stSelectbox > div > div, .stMultiSelect > div > div {
+        background-color: #171717 !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: var(--radius-md) !important;
+    }
+    
+    /* Tabs - Estilo Navegación */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px !important;
+        background-color: transparent !important;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background-color: transparent !important;
+        border-radius: 100px !important;
+        padding: 8px 16px !important;
+        color: var(--text-dim) !important;
+        border: 1px solid transparent !important;
+    }
+    
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #262626 !important;
+        color: white !important;
+        border: 1px solid #404040 !important;
+    }
+    
+    /* Progress Bars - Slim & Glowing */
+    .stProgress > div > div {
+        background: linear-gradient(90deg, var(--primary), #60a5fa) !important;
+        height: 8px !important;
+        border-radius: 100px !important;
+        box-shadow: 0 0 10px var(--primary-glow) !important;
+    }
+    
+    /* Dataframes/Tablas - Estilo Dashboard */
+    .stDataFrame {
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: var(--radius-lg) !important;
+        overflow: hidden !important;
+    }
+    
+    /* Alertas y Notificaciones */
+    .stAlert {
+        background-color: #1a1a1a !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: var(--radius-md) !important;
+    }
+    
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: var(--bg-app);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #555;
     }
 </style>
 """, unsafe_allow_html=True)
