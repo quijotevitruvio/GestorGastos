@@ -33,7 +33,7 @@ from currency import convertir_columna, formatear_moneda, obtener_tasas  # Conve
 # CONFIGURACIÓN INICIAL
 # ============================================================
 load_dotenv()
-st.set_page_config(page_title="Ge$torGasto$", page_icon="💰", layout="wide")
+st.set_page_config(page_title="Ge$torGasto$", page_icon="assets/logo.jpg", layout="wide")
 
 # CSS para UX limpia - tema oscuro con buena legibilidad
 st.markdown("""
@@ -326,8 +326,15 @@ if not verificar_login():
 # ============================================================
 # TÍTULO PRINCIPAL - Centrado y pequeño
 # ============================================================
+try:
+    col_l, col_c, col_r = st.columns([2, 1, 2])
+    with col_c:
+        st.image("assets/logo.jpg", width=120)
+except:
+    pass
+
 st.markdown("""
-<div style="text-align: center; padding: 10px 0 20px 0;">
+<div style="text-align: center; padding: 0 0 20px 0;">
     <h2 style="color: #4ade80; margin: 0;">💰 Ge$torGasto$</h2>
     <p style="color: #9ca3af; font-size: 0.85rem; margin: 5px 0 0 0;">Auditor Financiero con IA</p>
 </div>
