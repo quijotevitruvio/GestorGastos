@@ -386,11 +386,23 @@ with st.sidebar.expander("➕ Registrar Nuevo Gasto", expanded=False):
             "Salud", "Ropa", "Educación", "Ahorro", "Otro"
         ])
         
-        # NUEVO: Recurrencia del gasto
-        recurrencia = st.selectbox("🔄 Frecuencia", [
-            "Único", "Semanal", "Quincenal", "Mensual", "Bimestral", 
-            "Trimestral", "Semestral", "Anual"
-        ], help="¿Se repite este gasto?")
+        # SECCIÓN DE RECURRENCIA Y RECORDATORIO - VISUALMENTE DESTACADA
+        st.markdown("---")
+        st.markdown("**🔄 Repetición y Alertas**")
+        col_rec1, col_rec2 = st.columns(2)
+        
+        with col_rec1:
+            # Recurrencia del gasto
+            recurrencia = st.selectbox("Frecuencia", [
+                "Único", "Semanal", "Quincenal", "Mensual", "Bimestral", 
+                "Trimestral", "Semestral", "Anual"
+            ], help="¿Cada cuánto se repite este gasto?")
+            
+        with col_rec2:
+            # Opción explícita de alerta
+            recordatorio = st.checkbox("🔔 Crear alerta de pago", value=(recurrencia != "Único"))
+            
+        st.markdown("---")
         
         medio_pago = st.selectbox("💳 Medio de Pago", [
             "Tarjeta Débito", "Tarjeta Crédito", "Efectivo", "Transferencia"
@@ -405,8 +417,14 @@ with st.sidebar.expander("➕ Registrar Nuevo Gasto", expanded=False):
             if concepto and monto > 0:
                 try:
                     worksheet = connect_sheets()
-                    # Agregar recurrencia a los datos
-                    nueva_fila = [str(fecha), concepto, monto, divisa, categoria, lugar, medio_pago, banco, recurrencia]
+                    # Convertir bool a string para sheets
+                    alerta_str = "SÍ" if recordatorio else "NO"
+                    
+                    # Agregar recurrencia y alerta a los datos
+                    nueva_fila = [
+                        str(fecha), concepto, monto, divisa, categoria, lugar, 
+                        medio_pago, banco, recurrencia, alerta_str
+                    ]
                     worksheet.append_row(nueva_fila)
                     st.success("¡Guardado!")
                     st.cache_data.clear()
@@ -543,6 +561,11 @@ if not df.empty and 'Recurrencia' in df.columns and 'Fecha' in df.columns:
             
             for _, row in df_recurrentes.iterrows():
                 try:
+                    # Verificar si tiene alertas activadas (columna index 9 aprox, o por nombre si existe)
+                    # Si no existe la columna Alerta, asumimos que SÍ quiere alerta por defecto
+                    if 'Alerta' in df.columns and str(row.get('Alerta', '')).upper() == 'NO':
+                        continue
+                        
                     fecha_orig = pd.to_datetime(row['Fecha'])
                     proxima = calcular_proxima_fecha(fecha_orig, row['Recurrencia'])
                     
