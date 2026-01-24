@@ -926,8 +926,16 @@ if not df.empty:
         )
     else:
         # Vista de tarjetas
+        # Helper para obtener score seguro
+        def safe_get_score(val):
+            try:
+                if not val: return 0
+                return float(val)
+            except:
+                return 0
+                
         for idx, row in df_filtrado.iterrows():
-            score = float(row.get('Score', 0)) if row.get('Score') else 0
+            score = safe_get_score(row.get('Score'))
             
             # Color según score
             if score >= 4:
