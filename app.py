@@ -278,21 +278,42 @@ CONTRASEÑA_ADMIN = obtener_secreto("ADMIN_PASSWORD")
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
+import extra_streamlit_components as stx
+
 def verificar_login():
     """Muestra el formulario de login si el usuario no está autenticado."""
-    if st.session_state["authenticated"]:
+    
+    # 1. Inicializar Cookie Manager
+    cookie_manager = stx.CookieManager()
+    
+    # 2. Verificar si ya está autenticado en sesión actual
+    if st.session_state.get("authenticated", False):
         return True
     
+    # 3. Verificar si hay cookie de "recordarme"
+    # Nota: get_all() a veces tarda un poco en cargar en la primera ejecución
+    cookies = cookie_manager.get_all()
+    if cookies.get("gestor_gastos_auth") == "true":
+        st.session_state["authenticated"] = True
+        return True
+    
+    # 4. Mostrar formulario de login
     st.title("🔒 Acceso Restringido")
     
     with st.form("formulario_login"):
         usuario = st.text_input("Usuario")
         contraseña = st.text_input("Contraseña", type="password")
+        recordarme = st.checkbox("💾 Recordarme en este dispositivo")
         enviado = st.form_submit_button("Entrar")
         
         if enviado:
             if usuario == USUARIO_ADMIN and contraseña == CONTRASEÑA_ADMIN:
                 st.session_state["authenticated"] = True
+                
+                # Si marcó "Recordarme", guardar cookie por 30 días
+                if recordarme:
+                    cookie_manager.set("gestor_gastos_auth", "true", key="set_auth_cookie", expires_at=datetime.now() + timedelta(days=30))
+                
                 st.rerun()
             else:
                 st.error("Usuario o contraseña incorrectos")

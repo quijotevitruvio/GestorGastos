@@ -8,3 +8,4 @@ plotly
 requests
 pytest
 python-dateutil
+extra-streamlit-components
