@@ -86,12 +86,21 @@ def connect_sheets():
         creds_json = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
         gc = gspread.service_account_from_dict(creds_json)
     
-    # Opción 3: Streamlit secrets
+    # Opción 3: Streamlit secrets (tabla TOML o string JSON)
     else:
         try:
-            creds_str = st.secrets["GOOGLE_CREDENTIALS"]
-            creds_json = json.loads(creds_str)
-            gc = gspread.service_account_from_dict(creds_json)
+            creds = st.secrets["GOOGLE_CREDENTIALS"]
+            # Si es un AttrDict/dict (formato tabla TOML), convertir a dict normal
+            if hasattr(creds, 'to_dict'):
+                creds_dict = creds.to_dict()
+            elif isinstance(creds, dict):
+                creds_dict = dict(creds)
+            elif isinstance(creds, str):
+                creds_dict = json.loads(creds)
+            else:
+                creds_dict = dict(creds)
+            
+            gc = gspread.service_account_from_dict(creds_dict)
         except Exception as e:
             raise FileNotFoundError(f"No se encontraron credenciales de Google: {e}")
     
