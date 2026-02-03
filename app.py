@@ -2239,22 +2239,21 @@ def render_patrimonio():
         patrimonio_neto = (total_activos + total_ahorros) - total_pasivos
         
         st.markdown(f"""
-        <div class="patrimonio-card" style="margin-bottom: 24px;">
-            <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">Patrimonio Neto Real</p>
-            <h1 style="margin: 4px 0 16px 0; font-size: 2.8rem; font-weight: 800;">${patrimonio_neto:,.0f}</h1>
-            
-            <div style="display: flex; gap: 20px;">
-                <div>
-                    <span style="color: #22c55e; font-weight: 600;">+ ${(total_activos + total_ahorros):,.0f}</span>
-                    <br><small style="opacity: 0.6;">Activos (Cuentas + Ahorro)</small>
-                </div>
-                <div>
-                    <span style="color: #ef4444; font-weight: 600;">- ${total_pasivos:,.0f}</span>
-                    <br><small style="opacity: 0.6;">Pasivos (Deudas)</small>
-                </div>
-            </div>
+<div class="patrimonio-card" style="margin-bottom: 24px;">
+    <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">Patrimonio Neto Real</p>
+    <h1 style="margin: 4px 0 16px 0; font-size: 2.8rem; font-weight: 800;">${patrimonio_neto:,.0f}</h1>
+    <div style="display: flex; gap: 20px;">
+        <div>
+            <span style="color: #22c55e; font-weight: 600;">+ ${(total_activos + total_ahorros):,.0f}</span>
+            <br><small style="opacity: 0.6;">Activos (Cuentas + Ahorro)</small>
         </div>
-        """, unsafe_allow_html=True)
+        <div>
+            <span style="color: #ef4444; font-weight: 600;">- ${total_pasivos:,.0f}</span>
+            <br><small style="opacity: 0.6;">Pasivos (Deudas)</small>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
         
     except Exception as e:
         st.error(f"Error calculando patrimonio: {e}")
