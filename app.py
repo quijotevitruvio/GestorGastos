@@ -1504,11 +1504,11 @@ def render_bolsillos():
         
         # Header con total
         st.markdown(f"""
-        <div style="text-align: center; padding: 20px 0;">
-            <p style="color: #666; font-size: 0.9rem; margin: 0;">Total Ahorrado</p>
-            <h1 style="color: #c8ff00; font-size: 2.5rem; margin: 8px 0; font-weight: 800;">${total_ahorrado:,.0f}</h1>
-        </div>
-        """, unsafe_allow_html=True)
+<div style="text-align: center; padding: 20px 0;">
+    <p style="color: #666; font-size: 0.9rem; margin: 0;">Total Ahorrado</p>
+    <h1 style="color: #c8ff00; font-size: 2.5rem; margin: 8px 0; font-weight: 800;">${total_ahorrado:,.0f}</h1>
+</div>
+""", unsafe_allow_html=True)
         
         st.markdown(f"**Tus Bolsillos** - {len(records)} bolsillo(s)")
         
@@ -1536,28 +1536,27 @@ def render_bolsillos():
                         color = "#ff9500"
                     
                     st.markdown(f"""
-                    <div class="glass-card" style="margin-bottom: 16px; text-align: center;">
-                        <div style="width: 56px; height: 56px; background: {color}22; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 12px auto;">
-                            {icono}
-                        </div>
-                        <h4 style="margin: 0 0 4px 0; color: #fff;">{nombre}</h4>
-                        <p style="margin: 0; font-size: 1.4rem; font-weight: 700; color: {color};">${ahorrado:,.0f}</p>
-                        <small style="color: #666;">Ahorrado</small>
-                        
-                        <div class="progress-container" style="margin: 16px 0 8px 0;">
-                            <div class="progress-bar" style="width: {min(progreso, 100)}%; background: linear-gradient(90deg, {color} 0%, {color}aa 100%);"></div>
-                        </div>
-                        <small style="color: #888;">{progreso:.0f}% de ${meta:,.0f}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
+<div class="glass-card" style="margin-bottom: 16px; text-align: center;">
+    <div style="width: 56px; height: 56px; background: {color}22; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 12px auto;">
+        {icono}
+    </div>
+    <h4 style="margin: 0 0 4px 0; color: #fff;">{nombre}</h4>
+    <p style="margin: 0; font-size: 1.4rem; font-weight: 700; color: {color};">${ahorrado:,.0f}</p>
+    <small style="color: #666;">Ahorrado</small>
+    <div class="progress-container" style="margin: 16px 0 8px 0;">
+        <div class="progress-bar" style="width: {min(progreso, 100)}%; background: linear-gradient(90deg, {color} 0%, {color}aa 100%);"></div>
+    </div>
+    <small style="color: #888;">{progreso:.0f}% de ${meta:,.0f}</small>
+</div>
+""", unsafe_allow_html=True)
         else:
             st.markdown("""
-            <div class="glass-card" style="text-align: center; padding: 40px;">
-                <p style="font-size: 3rem; margin: 0;">🐷</p>
-                <h3 style="color: #fff; margin: 16px 0 8px 0;">Sin bolsillos de ahorro</h3>
-                <p style="color: #666;">Crea tu primer bolsillo para empezar a ahorrar hacia tus metas.</p>
-            </div>
-            """, unsafe_allow_html=True)
+<div class="glass-card" style="text-align: center; padding: 40px;">
+    <p style="font-size: 3rem; margin: 0;">🐷</p>
+    <h3 style="color: #fff; margin: 16px 0 8px 0;">Sin bolsillos de ahorro</h3>
+    <p style="color: #666;">Crea tu primer bolsillo para empezar a ahorrar hacia tus metas.</p>
+</div>
+""", unsafe_allow_html=True)
             
     except Exception as e:
         st.error(f"Error cargando bolsillos: {e}")
