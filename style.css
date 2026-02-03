@@ -1,0 +1,536 @@
+/* ========== GE$TORGASTO$ PREMIUM THEME ========== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    --bg: #0a0a0a;
+    --bg-gradient: linear-gradient(135deg, #0a0a0a 0%, #111111 50%, #0d1117 100%);
+    --surface: #111111;
+    --surface-glass: rgba(17, 17, 17, 0.85);
+    --card-bg: rgba(20, 20, 20, 0.9);
+    --border: #1a1a1a;
+    --border-glow: #2a2a2a;
+    --neon-green: #c8ff00;
+    --neon-green-dim: rgba(200, 255, 0, 0.15);
+    --neon-blue: #00d4ff;
+    --neon-pink: #ff3366;
+    --neon-red: #ff4444;
+    --neon-orange: #ff9500;
+    --text: #ffffff;
+    --text-secondary: #a0a0a0;
+    --text-dim: #666666;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+}
+
+/* ===== BASE ===== */
+.stApp {
+    background: var(--bg-gradient) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    color: var(--text) !important;
+}
+
+/* ===== SIDEBAR PREMIUM (Option 1: Glassmorphism) ===== */
+[data-testid="stSidebar"] {
+    background: rgba(10, 10, 10, 0.7) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Ocultar círculo de radio y dar estilo de botón premium */
+[data-testid="stSidebar"] div[role="radiogroup"] {
+    padding: 0 !important;
+    gap: 8px !important;
+}
+
+[data-testid="stSidebar"] label[data-baseweb="radio"] {
+    background: transparent !important;
+    color: var(--neon-green) !important;
+    border: 2px solid var(--neon-green) !important;
+    border-radius: 12px !important;
+    padding: 12px 24px !important;
+    margin-bottom: 8px !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    width: 100% !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    /* Centrado como botón */
+}
+
+[data-testid="stSidebar"] label[data-baseweb="radio"]:hover {
+    background: var(--neon-green) !important;
+    color: #000 !important;
+    box-shadow: 0 0 20px rgba(200, 255, 0, 0.4) !important;
+    transform: translateY(-2px);
+}
+
+/* Hover en texto para cambiar color a negro al pasar el mouse */
+[data-testid="stSidebar"] label[data-baseweb="radio"]:hover * {
+    color: #000 !important;
+}
+
+[data-testid="stSidebar"] label[data-baseweb="radio"]>div:first-child {
+    display: none !important;
+}
+
+/* Texto del menú - Selector universal para asegurar visibilidad */
+[data-testid="stSidebar"] label[data-baseweb="radio"] * {
+    color: var(--neon-green) !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    letter-spacing: 0.3px !important;
+}
+
+/* Estilo para la opción seleccionada */
+[data-testid="stSidebar"] label[aria-checked="true"] {
+    background: var(--neon-green) !important;
+    color: #000 !important;
+    box-shadow: 0 0 20px rgba(200, 255, 0, 0.4) !important;
+    border: 2px solid var(--neon-green) !important;
+    transform: translateY(-2px);
+}
+
+[data-testid="stSidebar"] label[aria-checked="true"] * {
+    color: #000 !important;
+    font-weight: 800 !important;
+    text-shadow: none !important;
+}
+
+/* ===== TARJETAS PRINCIPALES (GLASSMORPHISM) ===== */
+.patrimonio-card {
+    background: linear-gradient(145deg, var(--neon-green) 0%, #a8d700 100%) !important;
+    border-radius: 24px;
+    padding: 28px;
+    color: #000;
+    box-shadow: 0 20px 60px rgba(200, 255, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.patrimonio-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.glass-card {
+    background: var(--surface-glass) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-glow);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+    border-color: var(--neon-green);
+    box-shadow: 0 12px 48px rgba(200, 255, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+/* ===== MÉTRICAS MEJORADAS ===== */
+[data-testid="stMetric"] {
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 16px !important;
+    padding: 20px 24px !important;
+    transition: all 0.3s ease !important;
+}
+
+[data-testid="stMetric"]:hover {
+    border-color: var(--neon-green) !important;
+    box-shadow: 0 0 30px rgba(200, 255, 0, 0.15) !important;
+    transform: translateY(-2px);
+}
+
+[data-testid="stMetricValue"] {
+    color: var(--text) !important;
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.5px !important;
+}
+
+[data-testid="stMetricLabel"] {
+    color: var(--text-secondary) !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+[data-testid="stMetricDelta"] {
+    font-weight: 600 !important;
+}
+
+/* ===== BOTONES PREMIUM ===== */
+.stButton>button {
+    background: transparent !important;
+    color: var(--neon-green) !important;
+    border: 2px solid var(--neon-green) !important;
+    border-radius: 12px !important;
+    padding: 12px 24px !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    letter-spacing: 0.3px !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.stButton>button:hover {
+    background: var(--neon-green) !important;
+    color: #000 !important;
+    box-shadow: 0 0 40px rgba(200, 255, 0, 0.4) !important;
+    transform: translateY(-2px) !important;
+}
+
+.stButton>button:active {
+    transform: translateY(0) !important;
+}
+
+/* Botones Circulares para Acciones Rápidas */
+.action-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.action-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 25px currentColor;
+}
+
+.action-btn.gasto {
+    color: var(--neon-pink);
+    border-color: var(--neon-pink);
+}
+
+.action-btn.ingreso {
+    color: var(--neon-green);
+    border-color: var(--neon-green);
+}
+
+.action-btn.transfer {
+    color: var(--neon-blue);
+    border-color: var(--neon-blue);
+}
+
+.action-btn.cuentas {
+    color: var(--neon-orange);
+    border-color: var(--neon-orange);
+}
+
+/* ===== BARRA DE PROGRESO PREMIUM ===== */
+.progress-container {
+    background: var(--border);
+    border-radius: 10px;
+    height: 12px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.5s ease;
+    background: linear-gradient(90deg, var(--neon-green) 0%, #a8d700 100%);
+    box-shadow: 0 0 15px rgba(200, 255, 0, 0.5);
+}
+
+.progress-bar.warning {
+    background: linear-gradient(90deg, var(--warning) 0%, #d97706 100%);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+}
+
+.progress-bar.danger {
+    background: linear-gradient(90deg, var(--danger) 0%, #dc2626 100%);
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
+}
+
+/* ===== TOOLTIPS OCULTOS ===== */
+.stButton>button::after,
+.stFormSubmitButton>button::after,
+[data-testid="stFormSubmitButton"]>button::after,
+button[kind="formSubmit"]::before,
+button[kind="formSubmit"]::after,
+[data-testid="baseButton-secondary"]::after,
+[data-testid="baseButton-primary"]::after,
+[data-baseweb="tooltip"] {
+    display: none !important;
+    content: none !important;
+}
+
+/* ===== INPUTS MODERNOS (Fixed) ===== */
+/* Wrapper de los inputs (La caja visible) */
+div[data-baseweb="input"],
+div[data-baseweb="select"]>div,
+div[data-baseweb="base-input"],
+.stTextArea>div>div {
+    background-color: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    color: var(--text) !important;
+    transition: all 0.2s ease !important;
+}
+
+/* El elemento input real dentro del wrapper (Transparentar para evitar cajas superpuestas) */
+input.st-bd,
+textarea.st-bd,
+select {
+    background-color: transparent !important;
+    color: var(--text) !important;
+}
+
+/* Selector genérico de input para limpiar estilos nativos */
+input[type="text"],
+input[type="number"],
+input[type="password"] {
+    background-color: transparent !important;
+    border: none !important;
+}
+
+div[data-baseweb="input"]:hover,
+div[data-baseweb="select"]>div:hover {
+    border-color: var(--neon-green) !important;
+}
+
+div[data-baseweb="input"]:focus-within,
+div[data-baseweb="select"]>div:focus-within {
+    border-color: var(--neon-green) !important;
+    box-shadow: 0 0 20px rgba(200, 255, 0, 0.2) !important;
+    outline: none !important;
+}
+
+/* ===== TABS PREMIUM ===== */
+.stTabs [data-baseweb="tab-list"] {
+    background: var(--surface) !important;
+    border-radius: 12px !important;
+    padding: 4px !important;
+    gap: 4px !important;
+}
+
+.stTabs [data-baseweb="tab"] {
+    color: var(--text-dim) !important;
+    border-radius: 10px !important;
+    padding: 10px 20px !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    color: var(--text-secondary) !important;
+    background: var(--border) !important;
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    color: #000 !important;
+    background: var(--neon-green) !important;
+    border-bottom: none !important;
+}
+
+/* ===== TABLAS PREMIUM ===== */
+.stDataFrame {
+    border: 1px solid var(--border) !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+}
+
+/* ===== SCROLLBAR ELEGANTE ===== */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-glow);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--neon-green);
+}
+
+/* ===== HEADERS CON ESTILO ===== */
+h1 {
+    color: var(--text) !important;
+    font-weight: 800 !important;
+    font-size: 2.2rem !important;
+    letter-spacing: -0.5px !important;
+}
+
+h2 {
+    color: var(--text) !important;
+    font-weight: 700 !important;
+    font-size: 1.5rem !important;
+}
+
+h3 {
+    color: var(--text-secondary) !important;
+    font-weight: 600 !important;
+    font-size: 1.1rem !important;
+}
+
+/* ===== BADGE ALERTA ===== */
+.badge-alert {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-alert.warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--warning);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-alert.danger {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-alert.success {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* ===== RESUMEN CARD ===== */
+.summary-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.summary-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.summary-icon.green {
+    background: var(--neon-green-dim);
+}
+
+.summary-icon.blue {
+    background: rgba(0, 212, 255, 0.15);
+}
+
+.summary-icon.pink {
+    background: rgba(255, 51, 102, 0.15);
+}
+
+/* ===== FAB (Floating Action Button) ===== */
+.fab-container {
+    position: fixed;
+    bottom: 80px;
+    right: 30px;
+    z-index: 9999;
+}
+
+.fab-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--neon-green) 0%, #a8d700 100%);
+    border: none;
+    box-shadow: 0 8px 25px rgba(200, 255, 0, 0.4);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: #000;
+    transition: all 0.3s ease;
+}
+
+.fab-btn:hover {
+    transform: scale(1.1) rotate(90deg);
+    box-shadow: 0 12px 35px rgba(200, 255, 0, 0.6);
+}
+
+/* ===== ANIMACIONES ===== */
+@keyframes pulse-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px rgba(200, 255, 0, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 40px rgba(200, 255, 0, 0.6);
+    }
+}
+
+@keyframes slide-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse-red {
+    0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
+
+.animate-pulse {
+    animation: pulse-glow 2s infinite;
+}
+
+.animate-slide-up {
+    animation: slide-up 0.5s ease-out;
+}
+
+.pago-urgente {
+    animation: pulse-red 1.5s infinite;
+}

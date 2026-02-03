@@ -17,18 +17,19 @@ Para ejecutar: streamlit run app.py
 """
 
 # ============================================================
-# IMPORTACIÓN DE LIBRERÍAS
+# IMPORTACIÓN DE LIBRERÍAS (BIBLIOTECAS)
 # ============================================================
-import streamlit as st       # Framework para crear la interfaz web
-import pandas as pd          # Manejo de datos tabulares
-import plotly.express as px  # Gráficos interactivos
-import gspread               # Conexión con Google Sheets
-import json
-import base64
-import time
-import os                    # Variables de entorno
-from datetime import datetime, timedelta
-from dotenv import load_dotenv  # Cargar variables desde .env
+import streamlit as st       # Interfaz principal de la aplicación
+import pandas as pd          # Procesamiento y análisis de datos tabulares
+import plotly.express as px  # Creación de gráficas interactivas
+import gspread               # Sincronización con hojas de cálculo de Google
+import json                  # Manejo de formatos de datos JSON
+import base64                # Codificación de recursos (como imágenes)
+import time                  # Manejo de tiempos y pausas
+import hashlib               # Hashing de contraseñas (SHA-256)
+import os                    # Gestión de archivos y variables del sistema
+from datetime import datetime, timedelta # Manejo de fechas y periodos de tiempo
+from dotenv import load_dotenv  # Carga de variables sensibles desde el archivo .env
 from currency import convertir_columna, formatear_moneda, obtener_tasas  # Conversión de divisas
 from validators import (  # Validación de datos
     sanitizar_texto, validar_monto, validar_fecha, validar_concepto,
@@ -36,407 +37,33 @@ from validators import (  # Validación de datos
 )
 
 # ============================================================
-# CONFIGURACIÓN INICIAL
+# CONFIGURACIÓN INICIAL DE LA APP
 # ============================================================
 load_dotenv()
 st.set_page_config(page_title="Ge$torGasto$", page_icon="assets/logo.jpg", layout="wide")
 
 # CSS Premium - Estética Moderna con Glassmorphism
-st.markdown("""
-<style>
-    /* ========== GE$TORGASTO$ PREMIUM THEME ========== */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-    
-    :root {
-        --bg: #0a0a0a;
-        --bg-gradient: linear-gradient(135deg, #0a0a0a 0%, #111111 50%, #0d1117 100%);
-        --surface: #111111;
-        --surface-glass: rgba(17, 17, 17, 0.85);
-        --card-bg: rgba(20, 20, 20, 0.9);
-        --border: #1a1a1a;
-        --border-glow: #2a2a2a;
-        --neon-green: #c8ff00;
-        --neon-green-dim: rgba(200, 255, 0, 0.15);
-        --neon-blue: #00d4ff;
-        --neon-pink: #ff3366;
-        --neon-red: #ff4444;
-        --neon-orange: #ff9500;
-        --text: #ffffff;
-        --text-secondary: #a0a0a0;
-        --text-dim: #666666;
-        --success: #22c55e;
-        --warning: #f59e0b;
-        --danger: #ef4444;
-    }
-    
-    /* ===== BASE ===== */
-    .stApp { 
-        background: var(--bg-gradient) !important; 
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        color: var(--text) !important;
-    }
-    
-    /* ===== SIDEBAR PREMIUM ===== */
-    [data-testid="stSidebar"] { 
-        background: linear-gradient(180deg, #0a0a0a 0%, #111 100%) !important;
-        border-right: 1px solid var(--border) !important;
-    }
-    
-    [data-testid="stSidebar"] .stRadio > label {
-        color: var(--text-secondary) !important;
-    }
-    
-    /* ===== TARJETAS PRINCIPALES (GLASSMORPHISM) ===== */
-    .patrimonio-card {
-        background: linear-gradient(145deg, var(--neon-green) 0%, #a8d700 100%) !important;
-        border-radius: 24px;
-        padding: 28px;
-        color: #000;
-        box-shadow: 0 20px 60px rgba(200, 255, 0, 0.2);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .patrimonio-card::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 100%;
-        height: 100%;
-        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
-        pointer-events: none;
-    }
-    
-    .glass-card {
-        background: var(--surface-glass) !important;
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid var(--border-glow);
-        border-radius: 20px;
-        padding: 24px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    .glass-card:hover {
-        border-color: var(--neon-green);
-        box-shadow: 0 12px 48px rgba(200, 255, 0, 0.1);
-        transform: translateY(-2px);
-    }
-    
-    /* ===== MÉTRICAS MEJORADAS ===== */
-    [data-testid="stMetric"] {
-        background: var(--card-bg) !important;
-        border: 1px solid var(--border) !important;
-        border-radius: 16px !important;
-        padding: 20px 24px !important;
-        transition: all 0.3s ease !important;
-    }
-    
-    [data-testid="stMetric"]:hover {
-        border-color: var(--neon-green) !important;
-        box-shadow: 0 0 30px rgba(200, 255, 0, 0.15) !important;
-        transform: translateY(-2px);
-    }
-    
-    [data-testid="stMetricValue"] {
-        color: var(--text) !important;
-        font-size: 2rem !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.5px !important;
-    }
-    
-    [data-testid="stMetricLabel"] {
-        color: var(--text-secondary) !important;
-        font-size: 0.8rem !important;
-        font-weight: 500 !important;
-        text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
-    }
-    
-    [data-testid="stMetricDelta"] {
-        font-weight: 600 !important;
-    }
-    
-    /* ===== BOTONES PREMIUM ===== */
-    .stButton > button {
-        background: transparent !important;
-        color: var(--neon-green) !important;
-        border: 2px solid var(--neon-green) !important;
-        border-radius: 12px !important;
-        padding: 12px 24px !important;
-        font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        letter-spacing: 0.3px !important;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    }
-    
-    .stButton > button:hover {
-        background: var(--neon-green) !important;
-        color: #000 !important;
-        box-shadow: 0 0 40px rgba(200, 255, 0, 0.4) !important;
-        transform: translateY(-2px) !important;
-    }
-    
-    .stButton > button:active {
-        transform: translateY(0) !important;
-    }
-    
-    /* Botones Circulares para Acciones Rápidas */
-    .action-btn {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        border: 2px solid var(--border);
-        background: var(--surface);
-        transition: all 0.3s ease;
-        cursor: pointer;
-        text-decoration: none;
-    }
-    
-    .action-btn:hover {
-        transform: scale(1.1);
-        box-shadow: 0 0 25px currentColor;
-    }
-    
-    .action-btn.gasto { color: var(--neon-pink); border-color: var(--neon-pink); }
-    .action-btn.ingreso { color: var(--neon-green); border-color: var(--neon-green); }
-    .action-btn.transfer { color: var(--neon-blue); border-color: var(--neon-blue); }
-    .action-btn.cuentas { color: var(--neon-orange); border-color: var(--neon-orange); }
-    
-    /* ===== BARRA DE PROGRESO PREMIUM ===== */
-    .progress-container {
-        background: var(--border);
-        border-radius: 10px;
-        height: 12px;
-        overflow: hidden;
-        position: relative;
-    }
-    
-    .progress-bar {
-        height: 100%;
-        border-radius: 10px;
-        transition: width 0.5s ease;
-        background: linear-gradient(90deg, var(--neon-green) 0%, #a8d700 100%);
-        box-shadow: 0 0 15px rgba(200, 255, 0, 0.5);
-    }
-    
-    .progress-bar.warning {
-        background: linear-gradient(90deg, var(--warning) 0%, #d97706 100%);
-        box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
-    }
-    
-    .progress-bar.danger {
-        background: linear-gradient(90deg, var(--danger) 0%, #dc2626 100%);
-        box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
-    }
-    
-    /* ===== TOOLTIPS OCULTOS ===== */
-    .stButton > button::after,
-    .stFormSubmitButton > button::after,
-    [data-testid="stFormSubmitButton"] > button::after,
-    button[kind="formSubmit"]::before,
-    button[kind="formSubmit"]::after,
-    [data-testid="baseButton-secondary"]::after,
-    [data-testid="baseButton-primary"]::after,
-    [data-baseweb="tooltip"] {
-        display: none !important;
-        content: none !important;
-    }
-    
-    /* ===== INPUTS MODERNOS ===== */
-    input, textarea, select {
-        background: var(--surface) !important;
-        border: 1px solid var(--border) !important;
-        border-radius: 12px !important;
-        color: var(--text) !important;
-        padding: 12px 16px !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    input:focus, textarea:focus, select:focus {
-        border-color: var(--neon-green) !important;
-        box-shadow: 0 0 20px rgba(200, 255, 0, 0.2) !important;
-        outline: none !important;
-    }
-    
-    /* ===== TABS PREMIUM ===== */
-    .stTabs [data-baseweb="tab-list"] {
-        background: var(--surface) !important;
-        border-radius: 12px !important;
-        padding: 4px !important;
-        gap: 4px !important;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        color: var(--text-dim) !important;
-        border-radius: 10px !important;
-        padding: 10px 20px !important;
-        font-weight: 500 !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover {
-        color: var(--text-secondary) !important;
-        background: var(--border) !important;
-    }
-    
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        color: #000 !important;
-        background: var(--neon-green) !important;
-        border-bottom: none !important;
-    }
-    
-    /* ===== TABLAS PREMIUM ===== */
-    .stDataFrame {
-        border: 1px solid var(--border) !important;
-        border-radius: 16px !important;
-        overflow: hidden !important;
-    }
-    
-    /* ===== SCROLLBAR ELEGANTE ===== */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: var(--bg); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb { 
-        background: var(--border-glow); 
-        border-radius: 4px;
-        transition: background 0.2s ease;
-    }
-    ::-webkit-scrollbar-thumb:hover { background: var(--neon-green); }
-    
-    /* ===== HEADERS CON ESTILO ===== */
-    h1 { 
-        color: var(--text) !important;
-        font-weight: 800 !important;
-        font-size: 2.2rem !important;
-        letter-spacing: -0.5px !important;
-    }
-    
-    h2 { 
-        color: var(--text) !important;
-        font-weight: 700 !important;
-        font-size: 1.5rem !important;
-    }
-    
-    h3 { 
-        color: var(--text-secondary) !important;
-        font-weight: 600 !important;
-        font-size: 1.1rem !important;
-    }
-    
-    /* ===== BADGE ALERTA ===== */
-    .badge-alert {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-    
-    .badge-alert.warning {
-        background: rgba(245, 158, 11, 0.15);
-        color: var(--warning);
-        border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-    
-    .badge-alert.danger {
-        background: rgba(239, 68, 68, 0.15);
-        color: var(--danger);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-    
-    .badge-alert.success {
-        background: rgba(34, 197, 94, 0.15);
-        color: var(--success);
-        border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    
-    /* ===== RESUMEN CARD ===== */
-    .summary-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 20px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-    
-    .summary-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-    }
-    
-    .summary-icon.green { background: var(--neon-green-dim); }
-    .summary-icon.blue { background: rgba(0, 212, 255, 0.15); }
-    .summary-icon.pink { background: rgba(255, 51, 102, 0.15); }
-    
-    /* ===== FAB (Floating Action Button) ===== */
-    .fab-container {
-        position: fixed;
-        bottom: 80px;
-        right: 30px;
-        z-index: 9999;
-    }
-    
-    .fab-btn {
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, var(--neon-green) 0%, #a8d700 100%);
-        border: none;
-        box-shadow: 0 8px 25px rgba(200, 255, 0, 0.4);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        color: #000;
-        transition: all 0.3s ease;
-    }
-    
-    .fab-btn:hover {
-        transform: scale(1.1) rotate(90deg);
-        box-shadow: 0 12px 35px rgba(200, 255, 0, 0.6);
-    }
-    
-    /* ===== ANIMACIONES ===== */
-    @keyframes pulse-glow {
-        0%, 100% { box-shadow: 0 0 20px rgba(200, 255, 0, 0.3); }
-        50% { box-shadow: 0 0 40px rgba(200, 255, 0, 0.6); }
-    }
-    
-    @keyframes slide-up {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .animate-pulse { animation: pulse-glow 2s infinite; }
-    .animate-slide-up { animation: slide-up 0.5s ease-out; }
-</style>
-""", unsafe_allow_html=True)
+# CSS Premium - Estética Moderna con Glassmorphism
+def local_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+try:
+    local_css("style.css")
+except Exception as e:
+    st.error(f"Error cargando estilos: {e}")
+
 
 # ============================================================
-# FUNCIONES PARA OBTENER SECRETOS
+# FUNCIONES DE SEGURIDAD (SECRETOS)
 # ============================================================
-# Soporta tanto .env (local) como st.secrets (Streamlit Cloud)
+# Esta parte permite que la app funcione tanto en tu PC (usando .env)
+# como en la nube (usando la configuración de Streamlit Cloud).
 
 def obtener_secreto(nombre, default=None):
     """
-    Obtiene un secreto desde st.secrets (Cloud) o os.getenv (local).
-    Prioriza st.secrets para compatibilidad con Streamlit Cloud.
+    Busca una clave de acceso (secreto).
+    Primero intenta en la configuración de la nube, y si no existe, en el archivo .env local.
     """
     try:
         if nombre in st.secrets:
@@ -446,12 +73,13 @@ def obtener_secreto(nombre, default=None):
     return os.getenv(nombre, default)
 
 # ============================================================
-# CONEXIÓN A GOOGLE SHEETS (para Streamlit Cloud)
+# CONEXIÓN CON GOOGLE SHEETS
 # ============================================================
 def connect_sheets(target_sheet=0):
     """
-    Conecta con Google Sheets usando credenciales disponibles.
-    target_sheet: Índice (0) o Nombre de la pestaña ("Ingresos", "Deudas")
+    Establece la conexión con tu hoja de cálculo en la nube.
+    target_sheet: Puede ser el número de la pestaña (0 para la primera) 
+                  o el nombre exacto ("Ingresos", "Deudas", etc.)
     """
     GOOGLE_CREDENTIALS_FILE = "credentials.json"
     GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
@@ -492,44 +120,62 @@ def connect_sheets(target_sheet=0):
         else:
             return sh.worksheet(target_sheet)
     except gspread.exceptions.WorksheetNotFound:
-        # Lanzar excepción para que el llamador pueda manejar la creación de la hoja
-        raise gspread.exceptions.WorksheetNotFound(f"Worksheet '{target_sheet}' not found")
+        # Auto-crear hoja 'Usuarios' si no existe
+        if target_sheet == "Usuarios":
+            sh = gc.open(GOOGLE_SHEET_NAME)
+            ws = sh.add_worksheet("Usuarios", rows=100, cols=5)
+            ws.append_row(["Usuario", "Password_Hash", "Rol", "Estado", "Fecha_Registro"])
+            # Crear admin por defecto si es la primera vez
+            admin_pass = obtener_secreto("ADMIN_PASSWORD", "admin123")
+            pass_hash = hashlib.sha256(admin_pass.encode()).hexdigest()
+            ws.append_row([obtener_secreto("ADMIN_USER", "admin"), pass_hash, "ADMIN", "ACTIVO", str(datetime.now())])
+            return ws
+        else:
+            raise gspread.exceptions.WorksheetNotFound(f"Worksheet '{target_sheet}' not found")
     except gspread.exceptions.SpreadsheetNotFound:
         raise ValueError(f"No se encontró la hoja de cálculo: {GOOGLE_SHEET_NAME}")
 
 # ============================================================
-# SISTEMA DE AUTENTICACIÓN
 # ============================================================
+# SISTEMA DE SEGURIDAD Y ACCESO (LOGIN)
+# ============================================================
+# Cargamos las credenciales maestras desde los secretos
 USUARIO_ADMIN = obtener_secreto("ADMIN_USER")
 CONTRASEÑA_ADMIN = obtener_secreto("ADMIN_PASSWORD")
 
+# Inicializamos el estado de la sesión si es la primera vez que entramos
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
+# Librería para manejar "cookies" y recordar la sesión del usuario
 import extra_streamlit_components as stx
 
 def get_base64_bin_file(bin_file):
+    """Convierte un archivo binario (como una imagen) en texto Base64 para usarlo en el diseño."""
     with open(bin_file, 'rb') as f:
         data = f.read()
     return base64.b64encode(data).decode()
 
 def verificar_login():
-    """Muestra el formulario de login si el usuario no está autenticado."""
+    """Controla la pantalla de acceso con Registro y Login Seguro."""
     
     # 1. Inicializar Cookie Manager
     cookie_manager = stx.CookieManager()
     
-    # 2. Verificar si ya está autenticado en sesión actual
+    # 2. Verificar cookie de sesión existente
+    if not st.session_state.get("authenticated", False):
+        cookies = cookie_manager.get_all()
+        if cookies.get("gestor_gastos_auth") == "true":
+            # Si hay cookie, intentamos recuperar el rol (idealmente la cookie sería un token seguro)
+            # Por simplicidad, asumimos rol USER si no hay más data, o ADMIN si coincide con secretos
+            st.session_state["authenticated"] = True
+            st.session_state["rol"] = "USER" # Default seguro
+            return True
+
     if st.session_state.get("authenticated", False):
         return True
     
-    # 3. Verificar si hay cookie de "recordarme"
-    cookies = cookie_manager.get_all()
-    if cookies.get("gestor_gastos_auth") == "true":
-        st.session_state["authenticated"] = True
-        return True
-    
-    # 4. Mostrar formulario de login con fondo premium
+    # 3. Mostrar Login / Registro
     bg_img = ""
     try:
         bin_str = get_base64_bin_file("assets/hero_bg.png")
@@ -545,15 +191,13 @@ def verificar_login():
             background-position: center;
             background-attachment: fixed;
         }}
-        div[data-testid="stForm"] {{
-            background: rgba(20, 20, 20, 0.7);
+        .login-card {{
+            background: rgba(20, 20, 20, 0.85);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(200, 255, 0, 0.2);
             border-radius: 24px;
             padding: 40px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            animation: slide-up 0.8s ease-out;
         }}
         .stTextInput > div > div > input {{
             background: rgba(255,255,255,0.05) !important;
@@ -564,86 +208,150 @@ def verificar_login():
         </style>
     """, unsafe_allow_html=True)
     
-    # Intentar copiar assets a static para que Streamlit los sirva si es necesario
-    # (Streamlit 1.10+ sirve /assets pero a veces necesita /static/assets)
-    
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<div style='height: 10vh'></div>", unsafe_allow_html=True)
-        st.markdown("""
-            <div style='text-align: center; margin-bottom: 2rem;'>
-                <h1 style='color: #c8ff00; font-size: 3.5rem; font-weight: 800; margin-bottom: 0;'>Ge$torGasto$</h1>
-                <p style='color: #fff; opacity: 0.8; font-size: 1.1rem;'>Control financiero inteligente con IA</p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown("<div style='height: 5vh'></div>", unsafe_allow_html=True)
         
-        with st.form("formulario_login"):
-            usuario = st.text_input("👤 Usuario", placeholder="Ingresa tu usuario...")
-            contraseña = st.text_input("🔑 Contraseña", type="password", placeholder="••••••••")
-            recordarme = st.checkbox("💾 Recordarme en este dispositivo")
+        # Tabs para Login / Registro
+        tab_login, tab_registro = st.tabs(["🔑 Iniciar Sesión", "📝 Solicitar Acceso"])
+        
+        with tab_login:
+            with st.container():
+                st.markdown("""
+                    <div style='text-align: center; margin-bottom: 2rem;'>
+                        <h1 style='color: #c8ff00; font-size: 3rem; margin: 0;'>Ge$torGasto$</h1>
+                        <p>Control Financiero Inteligente</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                with st.form("form_login"):
+                    usuario = st.text_input("Usuario")
+                    password = st.text_input("Contraseña", type="password")
+                    recordarme = st.checkbox("Recordarme")
+                    
+                    if st.form_submit_button("Entrar", use_container_width=True):
+                        try:
+                            # Autenticación Dual: Secretos (Admin Maestro) o Google Sheets
+                            auth_success = False
+                            rol_detectado = "USER"
+                            
+                            # 1. Check Secretos (Admin Backup)
+                            if usuario == USUARIO_ADMIN and password == CONTRASEÑA_ADMIN:
+                                auth_success = True
+                                rol_detectado = "ADMIN"
+                            else:
+                                # 2. Check Google Sheets
+                                pass_hash = hashlib.sha256(password.encode()).hexdigest()
+                                sh_users = connect_sheets("Usuarios")
+                                df_users = pd.DataFrame(sh_users.get_all_records())
+                                
+                                user_row = df_users[df_users['Usuario'] == usuario]
+                                if not user_row.empty:
+                                    stored_hash = user_row.iloc[0]['Password_Hash']
+                                    estado = user_row.iloc[0]['Estado']
+                                    rol = user_row.iloc[0]['Rol']
+                                    
+                                    if str(stored_hash) == pass_hash:
+                                        if estado == "ACTIVO":
+                                            auth_success = True
+                                            rol_detectado = rol
+                                        else:
+                                            st.warning("⚠️ Tu cuenta está PENDIENTE de aprobación.")
+                                    else:
+                                        st.error("❌ Contraseña incorrecta")
+                                else:
+                                    st.error("❌ Usuario no encontrado")
+                            
+                            if auth_success:
+                                st.session_state["authenticated"] = True
+                                st.session_state["rol"] = rol_detectado
+                                if recordarme:
+                                    cookie_manager.set("gestor_gastos_auth", "true", expires_at=datetime.now() + timedelta(days=30))
+                                st.rerun()
+                                
+                        except Exception as e:
+                            st.error(f"Error de conexión: {e}")
+
+        with tab_registro:
+            st.markdown("### 🆕 Crear Nueva Cuenta")
+            st.info("ℹ️ Tu cuenta deberá ser aprobada por un administrador.")
             
-            st.markdown("<br>", unsafe_allow_html=True)
-            enviado = st.form_submit_button("🚀 Iniciar Sesión", use_container_width=True)
-            
-            if enviado:
-                if usuario == USUARIO_ADMIN and contraseña == CONTRASEÑA_ADMIN:
-                    st.session_state["authenticated"] = True
-                    if recordarme:
-                        cookie_manager.set("gestor_gastos_auth", "true", key="set_auth_cookie", expires_at=datetime.now() + timedelta(days=30))
-                    st.rerun()
-                else:
-                    st.error("❌ Usuario o contraseña incorrectos")
-    
+            with st.form("form_registro"):
+                new_user = st.text_input("Elige un Usuario")
+                new_pass = st.text_input("Contraseña", type="password")
+                confirm_pass = st.text_input("Confirmar Contraseña", type="password")
+                
+                if st.form_submit_button("Solicitar Acceso", use_container_width=True):
+                    if new_pass != confirm_pass:
+                        st.error("❌ Las contraseñas no coinciden")
+                    elif len(new_pass) < 6:
+                        st.error("⚠️ La contraseña debe tener al menos 6 caracteres")
+                    elif not new_user:
+                        st.error("⚠️ El usuario es obligatorio")
+                    else:
+                        try:
+                            sh_users = connect_sheets("Usuarios")
+                            todos_usuarios = sh_users.col_values(1) # Columna de usuarios
+                            
+                            if new_user in todos_usuarios:
+                                st.error("❌ Este usuario ya existe")
+                            else:
+                                # Crear usuario pendiente
+                                pass_hash_new = hashlib.sha256(new_pass.encode()).hexdigest()
+                                sh_users.append_row([
+                                    new_user, 
+                                    pass_hash_new, 
+                                    "USER", 
+                                    "PENDIENTE", 
+                                    str(datetime.now())
+                                ])
+                                st.success("✅ ¡Solicitud enviada! Avisa al administrador para que te apruebe.")
+                                st.balloons()
+                        except Exception as e:
+                            st.error(f"Error al registrar: {e}")
+
     return False
 
 if not verificar_login():
     st.stop()
 
 # ============================================================
-# TÍTULO PRINCIPAL - Centrado y pequeño
+# INTERFAZ PRINCIPAL - SIDEBAR (BARRA LATERAL)
 # ============================================================
-try:
-    col_l, col_c, col_r = st.columns([2, 1, 2])
-    with col_c:
-        st.image("assets/logo.jpg", width=120)
-except:
-    pass
+with st.sidebar:
+    st.markdown("""
+        <div style="text-align: center; margin-bottom: 20px;">
+            <p style="color: #c8ff00; font-size: 0.8rem; margin: 0; letter-spacing: 2px;">EDICIÓN PREMIUM</p>
+        </div>
+    """, unsafe_allow_html=True)
 
-st.markdown("""
-<div style="text-align: center; padding: 0 0 20px 0;">
-    <h2 style="color: #c8ff00; margin: 0; font-weight: 800;">💰 Ge$torGasto$</h2>
-    <p style="color: #a0a0a0; font-size: 0.85rem; margin: 5px 0 0 0;">Tu Asistente Financiero con IA</p>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown("### NAVEGACIÓN PRINCIPAL")
+    
+    # Definir opciones de menú según rol
+    opciones_menu = ["🏠 Inicio", "📒 Movimientos", "💼 Mi Patrimonio", "🤖 Asistente IA"]
+    
+    # Mostrar Panel Admin SOLO si es admin
+    if st.session_state.get("rol") == "ADMIN":
+        opciones_menu.append("👮 Panel Admin")
+    
+    # Menú de navegación
+    modulo = st.radio(
+        "Ir a:",
+        opciones_menu,
+        label_visibility="collapsed",
+        key="navegacion_principal"
+    )
 
-# ============================================================
-# SIDEBAR: CONTROLES PRINCIPALES
-# ============================================================
-
-# Header con icono de logout
-col_header, col_logout = st.sidebar.columns([4, 1])
-with col_header:
-    st.markdown("**⚙️ Panel**")
-with col_logout:
-    if st.button("🚪", help="Cerrar sesión"):
+    st.markdown("---")
+    
+    # Espaciador para empujar el botón de logout al fondo (en pantallas altas)
+    st.markdown("<div style='margin-top: 5vh;'></div>", unsafe_allow_html=True)
+    
+    # Botón de cierre de sesión (al final)
+    if st.button("🚪 Cerrar Sesión Segura", key="boton_logout", use_container_width=True):
         st.session_state["authenticated"] = False
+        cookie_manager.delete("gestor_gastos_auth")
         st.rerun()
-
-# ============================================================
-# MENÚ DE NAVEGACIÓN PRINCIPAL (Fase 3)
-# ============================================================
-
-st.sidebar.markdown("---")
-
-# Selector de Módulo
-modulo = st.sidebar.radio(
-    "Navegación", 
-    ["🏠 Inicio", "💸 Egresos", "💰 Ingresos", "🏦 Cuentas", "🐷 Bolsillos", "🤝 Deudas", "🤖 Asistente IA"],
-    index=0, # Default: Inicio (Dashboard)
-    key="navegacion_principal"
-)
-
-st.sidebar.markdown("---")
 
 # ============================================================
 # FUNCIONES DE MÓDULOS (NUEVAS)
@@ -660,14 +368,14 @@ def dialog_ingreso():
         
         c1, c2 = st.columns(2)
         divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], key="ing_divisa")
-        monto = c2.number_input("Monto", min_value=0.0, step=10000.0, key="ing_monto")
+        monto = c2.number_input("Monto", value=None, min_value=0.0, step=100.0, format="%.2f", key="ing_monto")
         
         fuente = st.selectbox("Fuente", ["Nómina", "Negocio", "Inversión", "Regalo", "Otros"])
         recurrencia = st.selectbox("Frecuencia", ["Único", "Mensual", "Quincenal", "Anual"], index=1)
         comentario = st.text_area("Notas", height=2)
         
         if st.form_submit_button("💾 Guardar Ingreso", use_container_width=True):
-            if monto > 0 and concepto:
+            if monto and monto > 0 and concepto:
                 try:
                     sh = connect_sheets("Ingresos")
                     sh.append_row([
@@ -683,7 +391,7 @@ def dialog_ingreso():
                 st.warning("Completa concepto y monto.")
 
 def render_ingresos():
-    st.title("💰 Gestión de Ingresos")
+    st.subheader("💰 Gestión de Ingresos")
     
     # Botón Flotante Principal
     col_btn, _ = st.columns([1, 4])
@@ -843,7 +551,7 @@ def render_ingresos():
                     c1, c2 = st.columns(2)
                     new_divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], 
                                               index=["COP", "USD", "EUR"].index(datos.get('Divisa', 'COP')) if datos.get('Divisa') in ["COP", "USD", "EUR"] else 0)
-                    new_monto = c2.number_input("Monto", value=float(datos.get('Monto', 0)), min_value=0.0)
+                    new_monto = c2.number_input("Monto", value=float(datos.get('Monto', 0)), min_value=0.0, step=100.0, format="%.2f")
                     
                     new_fuente = st.selectbox("Fuente", ["Nómina", "Negocio", "Inversión", "Regalo", "Otros"],
                         index=["Nómina", "Negocio", "Inversión", "Regalo", "Otros"].index(datos.get('Fuente', 'Otros')) if datos.get('Fuente') in ["Nómina", "Negocio", "Inversión", "Regalo", "Otros"] else 4
@@ -915,14 +623,14 @@ def dialog_deuda():
         
         c1, c2 = st.columns(2)
         divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], key="modal_dd_div")
-        monto = c2.number_input("Monto", min_value=0.0, step=10000.0)
+        monto = c2.number_input("Monto", value=None, min_value=0.0, step=100.0, format="%.2f")
         
         fecha_limite = st.date_input("Vence", key="modal_dd_limite")
         comentario = st.text_area("Notas", height=1)
         alerta = st.checkbox("🔔 Alerta", value=True)
         
         if st.form_submit_button("💾 Guardar", use_container_width=True):
-            if persona and monto > 0:
+            if persona and monto and monto > 0:
                 try:
                     tipo_db = "ME_DEBEN" if "Me Deben" in tipo_operacion else "YO_DEBO"
                     id_unico = f"{tipo_db[:2]}_{int(pd.Timestamp.now().timestamp())}"
@@ -952,7 +660,7 @@ def dialog_deuda():
                 st.warning("Completa quién y cuánto.")
 
 def render_deudas():
-    st.title("🤝 Control de Deudas")
+    st.subheader("🤝 Control de Deudas")
     
     col_btn, _ = st.columns([1, 4])
     if col_btn.button("➕ Nueva Obligación", use_container_width=True, type="primary"):
@@ -1127,7 +835,7 @@ def render_deudas():
                     c1, c2 = st.columns(2)
                     new_divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], 
                                               index=["COP", "USD", "EUR"].index(datos.get('Divisa', 'COP')) if datos.get('Divisa') in ["COP", "USD", "EUR"] else 0)
-                    new_monto = c2.number_input("Monto", value=float(datos.get('MontoOriginal', 0)), min_value=0.0)
+                    new_monto = c2.number_input("Monto", value=float(datos.get('MontoOriginal', 0)), min_value=0.0, step=100.0, format="%.2f")
                     
                     new_estado = st.selectbox("Estado", ["PENDIENTE", "PAGADO"],
                         index=["PENDIENTE", "PAGADO"].index(datos.get('Estado', 'PENDIENTE')) if datos.get('Estado') in ["PENDIENTE", "PAGADO"] else 0
@@ -1261,18 +969,16 @@ def render_inicio():
         ingresos_fmt = f"${total_ingresos:,.0f}"
         gastos_fmt = f"${total_gastos:,.0f}"
         
-        st.markdown(f"""
+        # Construir HTML del Dashboard (Sin saltos de línea para evitar errores de renderizado)
+        html_dashboard = f"""
         <div class="patrimonio-card animate-slide-up">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
                 <div>
                     <p style="margin: 0; font-size: 0.85rem; opacity: 0.7; font-weight: 500;">Patrimonio Total 👁</p>
-                    <h1 style="margin: 8px 0 0 0; font-size: 2.8rem; font-weight: 800; color: #000;">
-                        {patrimonio_fmt}
-                    </h1>
+                    <h1 style="margin: 8px 0 0 0; font-size: 2.8rem; font-weight: 800; color: #000;">{patrimonio_fmt}</h1>
                 </div>
                 {estado_badge}
             </div>
-            
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
                 <div style="background: rgba(0,0,0,0.1); padding: 16px; border-radius: 16px;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
@@ -1289,23 +995,24 @@ def render_inicio():
                     <p style="margin: 0; font-size: 1.4rem; font-weight: 700; color: #22c55e;">{ahorrado_fmt}</p>
                 </div>
             </div>
-            
             <div style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
                 <div>
                     <span style="font-size: 0.75rem; opacity: 0.6;">restante</span>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">{restante_fmt}</p>
                 </div>
                 <div style="text-align: right;">
-                    <span style="font-size: 0.75rem; opacity: 0.6;">Ingresos del Período</span>
+                    <span style="font-size: 0.75rem; opacity: 0.6;">Ingresos</span>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #22c55e;">↑ {ingresos_fmt}</p>
                 </div>
                 <div style="text-align: right;">
-                    <span style="font-size: 0.75rem; opacity: 0.6;">Gastos del Período</span>
+                    <span style="font-size: 0.75rem; opacity: 0.6;">Gastos</span>
                     <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #ef4444;">↓ {gastos_fmt}</p>
                 </div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """.replace('\n', '').replace('    ', '')
+        
+        st.markdown(html_dashboard, unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -1504,7 +1211,7 @@ def render_cuentas():
         except:
             pass
     with col_title:
-        st.title("🏦 Gestión de Cuentas")
+        st.subheader("🏦 Gestión de Cuentas")
         st.caption("Administra tus cuentas bancarias y billeteras")
     
     # Botón para agregar
@@ -1628,12 +1335,12 @@ def dialog_cuenta():
         
         c1, c2 = st.columns(2)
         tipo = c1.selectbox("Tipo", ["Efectivo", "Ahorros", "Corriente", "Crédito", "Inversión", "Otro"])
-        saldo = c2.number_input("Saldo inicial", min_value=0.0, step=10000.0)
+        saldo = c2.number_input("Saldo inicial", value=None, min_value=0.0, step=10000.0, format="%.2f")
         
         divisa = st.selectbox("Divisa", ["COP", "USD", "EUR"])
         
         if st.form_submit_button("💾 Guardar", use_container_width=True):
-            if nombre:
+            if nombre and saldo is not None:
                 try:
                     # Intentar conectar o crear hoja
                     try:
@@ -1688,13 +1395,13 @@ def dialog_transferencia():
         cuenta_origen = c1.selectbox("📤 Desde", nombres_cuentas, key="trans_origen")
         cuenta_destino = c2.selectbox("📥 Hacia", nombres_cuentas, key="trans_destino")
         
-        monto = st.number_input("💰 Monto a transferir", min_value=0.0, step=10000.0)
+        monto = st.number_input("💰 Monto a transferir", value=None, min_value=0.0, step=10000.0, format="%.2f")
         concepto = st.text_input("📝 Concepto (opcional)", placeholder="Ej: Ahorro mensual...")
         
         if st.form_submit_button("✅ Realizar Transferencia", use_container_width=True, type="primary"):
             if cuenta_origen == cuenta_destino:
                 st.error("❌ La cuenta de origen y destino deben ser diferentes")
-            elif monto <= 0:
+            elif not monto or monto <= 0:
                 st.warning("⚠️ El monto debe ser mayor a 0")
             else:
                 try:
@@ -1837,7 +1544,7 @@ def render_bolsillos():
         except:
             pass
     with col_title:
-        st.title("🐷 Bolsillos de Ahorro")
+        st.subheader("🐷 Bolsillos de Ahorro")
         st.caption("Ahorra para tus metas y sueños")
     
     # Botón para crear
@@ -1922,13 +1629,13 @@ def dialog_bolsillo():
         nombre = st.text_input("Nombre del bolsillo", placeholder="Ej: Casita, Viaje...")
         
         c1, c2 = st.columns(2)
-        meta = c1.number_input("Meta de ahorro", min_value=0.0, step=50000.0)
+        meta = c1.number_input("Meta de ahorro", value=None, min_value=0.0, step=50000.0, format="%.2f")
         icono = c2.selectbox("Icono", ["Casa", "Viaje", "Auto", "Educación", "Emergencia", "Otro"])
         
-        ahorrado_inicial = st.number_input("Ahorro inicial (opcional)", min_value=0.0, step=10000.0)
+        ahorrado_inicial = st.number_input("Ahorro inicial (opcional)", value=None, min_value=0.0, step=10000.0, format="%.2f")
         
         if st.form_submit_button("💾 Crear Bolsillo", use_container_width=True):
-            if nombre and meta > 0:
+            if nombre and meta and meta > 0:
                 try:
                     try:
                         sh = connect_sheets("Bolsillos")
@@ -1940,7 +1647,7 @@ def dialog_bolsillo():
                         sh.append_row(["ID", "Nombre", "Meta", "Ahorrado", "Icono", "Color", "FechaCreacion"])
                     
                     id_bolsillo = f"BOL_{int(pd.Timestamp.now().timestamp())}"
-                    sh.append_row([id_bolsillo, nombre, meta, ahorrado_inicial, icono, "#c8ff00", str(datetime.now().date())])
+                    sh.append_row([id_bolsillo, nombre, meta, ahorrado_inicial if ahorrado_inicial else 0, icono, "#c8ff00", str(datetime.now().date())])
                     
                     st.toast(f"✅ Bolsillo '{nombre}' creado")
                     st.cache_data.clear()
@@ -1968,6 +1675,9 @@ def render_asistente_ia():
         st.title("🤖 Asistente de Ge$torGasto$")
         st.caption("Tu consejero financiero con Inteligencia Artificial")
     
+    # Selector de Personalidad
+    modo_ia = st.radio("Personalidad:", ["🎓 Mentor Sabio", "🤬 Asesor Tóxico"], horizontal=True, key="modo_ia_selector")
+    
     # Inicializar historial de chat
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
@@ -1983,22 +1693,26 @@ def render_asistente_ia():
     </div>
     """, unsafe_allow_html=True)
     
-    # Sugerencias rápidas
+    # Sugerencias Contextuales Inteligentes (Lógica Simple)
+    try:
+        # Calcular top gasto
+        sh_g = connect_sheets(0)
+        df_g = pd.DataFrame(sh_g.get_all_records())
+        if not df_g.empty and 'Monto' in df_g.columns:
+            top_cat = df_g.groupby('Categoria')['Monto'].sum().sort_values(ascending=False).index[0]
+            sug_gasto = f"Analiza por qué gasto tanto en {top_cat}"
+        else:
+            sug_gasto = "Analiza mis gastos recientes"
+    except:
+        sug_gasto = "Analiza mis gastos"
+
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("📊 Analizar mis gastos", use_container_width=True, key="sug_analizar"):
-            st.session_state.pending_question = "Analiza mis gastos del último mes y dame recomendaciones"
+        if st.button(f"📊 {sug_gasto}", use_container_width=True, key="sug_ai_1"):
+            st.session_state.pending_question = sug_gasto
     with col2:
-        if st.button("➕ Añadir transacción", use_container_width=True, key="sug_add"):
-            dialog_gasto()
-    
-    col3, col4 = st.columns(2)
-    with col3:
-        if st.button("📋 Revisar presupuesto", use_container_width=True, key="sug_pres"):
-            st.session_state.pending_question = "¿Cómo voy con mi presupuesto este mes?"
-    with col4:
-        if st.button("💡 ¿Cómo puedo ahorrar más?", use_container_width=True, key="sug_ahorro"):
-            st.session_state.pending_question = "Dame consejos personalizados para ahorrar más dinero"
+        if st.button("🔮 Proyecta mis finanzas a fin de mes", use_container_width=True, key="sug_ai_2"):
+            st.session_state.pending_question = "¿Cómo terminaré el mes basado en mi ritmo actual?"
     
     st.markdown("---")
     
@@ -2013,10 +1727,16 @@ def render_asistente_ia():
             </div>
             """, unsafe_allow_html=True)
         else:
+            # Renderizar respuesta del asistente (posible HTML/Gráficos)
+            contenido = msg['content']
+            
+            # Detectar si hay comandos de gráficos (ej: [GRAPH: PIE])
+            # Por simplicidad, renderizamos el contenido. Si tuviéramos lógica compleja de gráficos, iría aquí.
+            
             st.markdown(f"""
             <div style="display: flex; justify-content: flex-start; margin-bottom: 12px;">
-                <div style="background: #222; color: #fff; padding: 12px 16px; border-radius: 16px 16px 16px 4px; max-width: 70%;">
-                    {msg['content']}
+                <div style="background: #222; color: #fff; padding: 12px 16px; border-radius: 16px 16px 16px 4px; max-width: 80%;">
+                    {contenido}
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -2024,7 +1744,7 @@ def render_asistente_ia():
     # Procesar pregunta pendiente
     if 'pending_question' in st.session_state:
         pregunta = st.session_state.pop('pending_question')
-        procesar_pregunta_ia(pregunta)
+        procesar_pregunta_ia(pregunta, modo=modo_ia)
         st.rerun()
     
     # Input de chat
@@ -2036,10 +1756,10 @@ def render_asistente_ia():
     with col_send:
         if st.button("🎤", key="btn_send"):
             if user_input:
-                procesar_pregunta_ia(user_input)
+                procesar_pregunta_ia(user_input, modo=modo_ia)
                 st.rerun()
 
-def procesar_pregunta_ia(pregunta):
+def procesar_pregunta_ia(pregunta, modo="🎓 Mentor Sabio"):
     """Procesa una pregunta del usuario con IA."""
     # Agregar pregunta al historial
     st.session_state.chat_history.append({'role': 'user', 'content': pregunta})
@@ -2068,9 +1788,27 @@ def procesar_pregunta_ia(pregunta):
             genai.configure(api_key=GEMINI_API_KEY)
             model = genai.GenerativeModel('gemini-flash-latest')
             
+            estilo = ""
+            if "Tóxico" in modo:
+                estilo = """
+                MODO: ASESOR TÓXICO / GROSERO.
+                - Tu tono debe ser sarcástico, directo y un poco hiriente (pero divertido).
+                - Regaña al usuario por sus malos hábitos financieros.
+                - No tengas piedad, usa mayúsculas para enfatizar errores.
+                - Ejemplo: "¿Otra vez gastando en comida basura? Así nunca vas a salir de pobre."
+                """
+            else:
+                estilo = """
+                MODO: MENTOR SABIO.
+                - Tono profesional, empático y constructivo.
+                - Explica los conceptos con paciencia.
+                - Motiva al usuario a mejorar.
+                """
+
             # Crear prompt con contexto
             contexto = f"""
-            Eres un asistente financiero personal amigable llamado Ge$torGasto$ AI.
+            Eres Ge$torGasto$ AI.
+            {estilo}
             
             DATOS ACTUALES DEL USUARIO:
             - Ingresos Totales: ${total_ingresos:,.0f}
@@ -2078,15 +1816,11 @@ def procesar_pregunta_ia(pregunta):
             - Saldo Neto: ${total_ingresos - total_gastos:,.0f}
             - Me deben (Cobros): ${me_deben:,.0f}
             - Yo debo (Deudas): ${yo_debo:,.0f}
-            - Transacciones registradas: {len(df_gastos)}
             
             INSTRUCCIONES:
             - Responde siempre en español.
-            - Sé breve (max 3-4 párrafos), amigable y profesional.
-            - Usa emojis para hacer la conversación ligera.
-            - Da consejos accionables basados en los números proporcionados.
-            - Si el saldo neto es bajo, sugiere moderar gastos.
-            - Si hay muchas deudas, sugiere priorizar el pago.
+            - Sé breve (max 3 párrafos).
+            - Si te piden un gráfico, escribe explícitamente "[GRAPH: PIE]" o "[GRAPH: BAR]" al final de tu respuesta (solo si tiene sentido).
             
             PREGUNTA DEL USUARIO: {pregunta}
             """
@@ -2101,11 +1835,6 @@ def procesar_pregunta_ia(pregunta):
     except Exception as e:
         st.session_state.chat_history.append({'role': 'assistant', 'content': f"⚠️ Error procesando: {str(e)}"})
 
-
-    # ============================================================
-    # RENDERIZADO DE MÓDULOS
-    # ============================================================
-    
     # ... (ingresos y deudas ya definidos arriba) ...
 
 @st.dialog("💸 Registrar Nuevo Gasto")
@@ -2116,7 +1845,7 @@ def dialog_gasto():
         
         c1, c2 = st.columns(2)
         divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"])
-        monto = c2.number_input("Monto", min_value=0.0, step=100.0 if divisa == "COP" else 1.0)
+        monto = c2.number_input("Monto", value=None, min_value=0.0, step=100.0, format="%.2f")
         
         categoria = st.selectbox("📁 Categoría", [
             "Comida", "Transporte", "Ocio", "Servicios", 
@@ -2135,37 +1864,41 @@ def dialog_gasto():
         
         if submit:
             # Validación completa
-            es_valido, errores = validar_formulario_gasto(fecha, concepto, monto, divisa, categoria)
-            
-            if not es_valido:
-                st.error("❌ Por favor corrige los siguientes errores:")
-                for error in errores:
-                    st.warning(error)
+            # Si monto es None, validación fallará en funciones que esperan número, así que validamos aquí primero
+            if not monto:
+                st.warning("El monto es obligatorio")
             else:
-                try:
-                    # Sanitizar texto antes de guardar
-                    concepto_limpio = sanitizar_texto(concepto)
-                    
-                    # ANALISIS IA
-                    score, justificacion, cat_sug, color = 3, "Manual", categoria, "#808080"
+                es_valido, errores = validar_formulario_gasto(fecha, concepto, monto, divisa, categoria)
+                
+                if not es_valido:
+                    st.error("❌ Por favor corrige los siguientes errores:")
+                    for error in errores:
+                        st.warning(error)
+                else:
                     try:
-                        from auditor import auditar_gasto
-                        score, justificacion, cat_sug, color = auditar_gasto(concepto_limpio, monto, divisa)
-                    except Exception as e:
-                        pass  # Si falla IA, usar valores por defecto
+                        # Sanitizar texto antes de guardar
+                        concepto_limpio = sanitizar_texto(concepto)
                         
-                    ws = connect_sheets(0)
-                    ws.append_row([
-                        str(fecha), concepto_limpio, monto, divisa, categoria,
-                        "Manual", "Efectivo", "N/A", score, justificacion,
-                        recurrencia, "SÍ" if c_alert else "NO"
-                    ])
-                    st.toast(f"✅ Gasto guardado: {concepto_limpio}")
-                    st.cache_data.clear()
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error guardando: {e}")
+                        # ANALISIS IA
+                        score, justificacion, cat_sug, color = 3, "Manual", categoria, "#808080"
+                        try:
+                            from auditor import auditar_gasto
+                            score, justificacion, cat_sug, color = auditar_gasto(concepto_limpio, monto, divisa)
+                        except Exception as e:
+                            pass  # Si falla IA, usar valores por defecto
+                            
+                        ws = connect_sheets(0)
+                        ws.append_row([
+                            str(fecha), concepto_limpio, monto, divisa, categoria,
+                            "Manual", "Efectivo", "N/A", score, justificacion,
+                            recurrencia, "SÍ" if c_alert else "NO"
+                        ])
+                        st.toast(f"✅ Gasto guardado: {concepto_limpio}")
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error guardando: {e}")
 
 def formatear_moneda(monto, divisa):
     if divisa == "COP":
@@ -2209,7 +1942,7 @@ def render_egresos():
     # ============================================================
     # CONTENIDO PRINCIPAL
     # ============================================================
-    st.title("💸 Gestión de Egresos")
+    st.subheader("💸 Gestión de Egresos")
     
     @st.cache_data(ttl=60)
     def cargar_datos():
@@ -2352,7 +2085,7 @@ def render_egresos():
                 c1, c2 = st.columns(2)
                 new_divisa = c1.selectbox("Divisa", ["COP", "USD", "EUR"], 
                                           index=["COP", "USD", "EUR"].index(datos.get('Divisa', 'COP')))
-                new_monto = c2.number_input("Monto", value=float(datos.get('Monto', 0)), min_value=0.0)
+                new_monto = c2.number_input("Monto", value=float(datos.get('Monto', 0)), min_value=0.0, step=100.0, format="%.2f")
                 
                 new_categoria = st.selectbox("Categoría", 
                     ["Comida", "Transporte", "Ocio", "Servicios", "Salud", "Ropa", "Educación", "Ahorro", "Otro"],
@@ -2488,18 +2221,7 @@ def render_egresos():
                             continue
                     
                     # CSS para animación llamativa
-                    st.markdown("""
-                    <style>
-                    @keyframes pulse {
-                        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-                        70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-                        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-                    }
-                    .pago-urgente {
-                        animation: pulse 1.5s infinite;
-                    }
-                    </style>
-                    """, unsafe_allow_html=True)
+
                     
                     # PAGOS DE HOY - MUY LLAMATIVO
                     if pagos_hoy:
@@ -2564,19 +2286,159 @@ def render_egresos():
         st.info("No hay gastos registrados. Usa el botón superior.")
 
 # ============================================================
-# ENRUTAMIENTO FINAL
+# FUNCIONES DE RENDERIZADO UNIFICADAS (NUEVO DISEÑO)
 # ============================================================
-if modulo == "🏠 Inicio":
-    render_inicio()
-elif modulo == "💸 Egresos":
-    render_egresos()
-elif modulo == "💰 Ingresos":
-    render_ingresos()
-elif modulo == "🏦 Cuentas":
-    render_cuentas()
-elif modulo == "🐷 Bolsillos":
-    render_bolsillos()
-elif modulo == "🤝 Deudas":
-    render_deudas()
-elif modulo == "🤖 Asistente IA":
-    render_asistente_ia()
+
+def render_movimientos():
+    """Vista unificada de Ingresos y Gastos."""
+    st.title("📒 Movimientos Financieros")
+    
+    tab_gastos, tab_ingresos = st.tabs(["📉 Gastos", "📈 Ingresos"])
+    
+    with tab_gastos:
+        render_egresos()
+        
+    with tab_ingresos:
+        render_ingresos()
+
+def render_patrimonio():
+    """Vista unificada de Cuentas, Ahorros y Deudas."""
+    st.title("💼 Mi Patrimonio")
+    
+    # Cálculos rápidos de Patrimonio Neto
+    try:
+        sh_cuentas = connect_sheets("Cuentas")
+        df_cuentas = pd.DataFrame(sh_cuentas.get_all_records())
+        total_activos = pd.to_numeric(df_cuentas['Saldo'], errors='coerce').sum() if not df_cuentas.empty else 0
+        
+        sh_bolsillos = connect_sheets("Bolsillos")
+        df_bolsillos = pd.DataFrame(sh_bolsillos.get_all_records())
+        total_ahorros = pd.to_numeric(df_bolsillos['Ahorrado'], errors='coerce').sum() if not df_bolsillos.empty else 0
+        
+        sh_deudas = connect_sheets("Deudas")
+        df_deudas = pd.DataFrame(sh_deudas.get_all_records())
+        total_pasivos = df_deudas[(df_deudas['Tipo'] == 'YO_DEBO') & (df_deudas['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if not df_deudas.empty and 'MontoOriginal' in df_deudas.columns else 0
+        
+        patrimonio_neto = (total_activos + total_ahorros) - total_pasivos
+        
+        st.markdown(f"""
+        <div class="patrimonio-card" style="margin-bottom: 24px;">
+            <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">Patrimonio Neto Real</p>
+            <h1 style="margin: 4px 0 16px 0; font-size: 2.8rem; font-weight: 800;">${patrimonio_neto:,.0f}</h1>
+            
+            <div style="display: flex; gap: 20px;">
+                <div>
+                    <span style="color: #22c55e; font-weight: 600;">+ ${(total_activos + total_ahorros):,.0f}</span>
+                    <br><small style="opacity: 0.6;">Activos (Cuentas + Ahorro)</small>
+                </div>
+                <div>
+                    <span style="color: #ef4444; font-weight: 600;">- ${total_pasivos:,.0f}</span>
+                    <br><small style="opacity: 0.6;">Pasivos (Deudas)</small>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    except Exception as e:
+        st.error(f"Error calculando patrimonio: {e}")
+
+    # Layout Principal
+    col_izq, col_der = st.columns([1, 1])
+    
+    with col_izq:
+        with st.expander("🏦 Cuentas Bancarias y Efectivo", expanded=True):
+            render_cuentas()
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        with st.expander("💎 Bolsillos de Ahorro", expanded=True):
+            render_bolsillos()
+            
+    with col_der:
+        with st.expander("🤝 Gestión de Deudas", expanded=True):
+            render_deudas()
+
+
+# ============================================================
+# PANEL DE ADMINISTRACIÓN (SOLO ADMINS)
+# ============================================================
+def render_admin_panel():
+    """Panel exclusivo para aprobar usuarios."""
+    st.title("👮 Panel de Administración")
+    
+    if st.session_state.get("rol") != "ADMIN":
+        st.error("⛔ Acceso Denegado. Se requiere rol de Administrador.")
+        return
+
+    try:
+        sh_users = connect_sheets("Usuarios")
+        data = sh_users.get_all_records()
+        df_users = pd.DataFrame(data)
+        
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.subheader("👥 Usuarios Pendientes")
+            pendientes = df_users[df_users['Estado'] == 'PENDIENTE']
+            
+            if pendientes.empty:
+                st.info("✅ No hay solicitudes pendientes.")
+            else:
+                for index, row in pendientes.iterrows():
+                    with st.container():
+                        st.markdown(f"""
+                        <div style="background: #222; padding: 16px; border-radius: 12px; border: 1px solid #444; margin-bottom: 10px;">
+                            <h3 style="margin: 0; color: #fff;">👤 {row['Usuario']}</h3>
+                            <small>Fecha: {row['Fecha_Registro']}</small>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        c1, c2, c3 = st.columns([1.5, 1, 1])
+                        with c1:
+                            nuevo_rol = st.selectbox("Rol Asignado", ["USER", "ADMIN"], key=f"rol_{row['Usuario']}")
+                        with c2:
+                            if st.button(f"✅ Aprobar", key=f"apr_{row['Usuario']}", type="primary"):
+                                cell = sh_users.find(row['Usuario'])
+                                sh_users.update_cell(cell.row, 3, nuevo_rol) # Columna 3 es Rol
+                                sh_users.update_cell(cell.row, 4, "ACTIVO") # Columna 4 es Estado
+                                st.toast(f"Usuario {row['Usuario']} aprobado como {nuevo_rol}.")
+                                time.sleep(1)
+                                st.rerun()
+                        with c3:
+                            if st.button(f"❌ Rechazar", key=f"rej_{row['Usuario']}"):
+                                cell = sh_users.find(row['Usuario'])
+                                sh_users.delete_rows(cell.row)
+                                st.toast(f"Usuario {row['Usuario']} rechazado.")
+                                time.sleep(1)
+                                st.rerun()
+
+        with col2:
+            st.subheader("📊 Estadísticas")
+            if not df_users.empty:
+                st.metric("Total Usuarios", len(df_users))
+                st.metric("Activos", len(df_users[df_users['Estado'] == 'ACTIVO']))
+                st.metric("Pendientes", len(pendientes))
+            
+    except Exception as e:
+        st.error(f"Error cargando usuarios: {e}")
+
+
+# ============================================================
+# ENRUTADOR PRINCIPAL (LÓGICA DE NAVEGACIÓN)
+# ============================================================
+# Mapeo unificado simplificado (4 Secciones + Admin)
+mapeo_modulos = {
+    "🏠 Inicio": render_inicio,
+    "📒 Movimientos": render_movimientos,
+    "💼 Mi Patrimonio": render_patrimonio,
+    "🤖 Asistente IA": render_asistente_ia,
+    "👮 Panel Admin": render_admin_panel # Solo visible si es admin
+}
+
+# Filtrar menú si no es admin (Seguridad extra, aunque sidebar ya lo oculta)
+if st.session_state.get("rol") != "ADMIN" and modulo == "👮 Panel Admin":
+    modulo = "🏠 Inicio"  # Redirigir a inicio si intenta acceder a admin
+
+# Ejecutar el módulo seleccionado
+if modulo in mapeo_modulos:
+    mapeo_modulos[modulo]()
