@@ -40,390 +40,139 @@ from validators import (  # Validación de datos
 load_dotenv()
 st.set_page_config(page_title="Ge$torGasto$", page_icon="assets/logo.jpg", layout="wide")
 
-# CSS Premium - Estética Moderna con Glassmorphism
+# CSS Minimalista - Estética Neón Limpia
 st.markdown("""
 <style>
-    /* ========== GE$TORGASTO$ PREMIUM THEME ========== */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    /* ========== NEON MINIMAL THEME ========== */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
     
     :root {
         --bg: #0a0a0a;
-        --bg-gradient: linear-gradient(135deg, #0a0a0a 0%, #111111 50%, #0d1117 100%);
-        --surface: #111111;
-        --surface-glass: rgba(17, 17, 17, 0.85);
-        --card-bg: rgba(20, 20, 20, 0.9);
-        --border: #1a1a1a;
-        --border-glow: #2a2a2a;
-        --neon-green: #c8ff00;
-        --neon-green-dim: rgba(200, 255, 0, 0.15);
+        --surface: #111;
+        --border: #222;
         --neon-blue: #00d4ff;
-        --neon-pink: #ff3366;
-        --neon-red: #ff4444;
-        --neon-orange: #ff9500;
-        --text: #ffffff;
-        --text-secondary: #a0a0a0;
-        --text-dim: #666666;
-        --success: #22c55e;
-        --warning: #f59e0b;
-        --danger: #ef4444;
+        --neon-green: #00ff88;
+        --neon-pink: #ff00aa;
+        --neon-red: #ff3355;
+        --text: #fff;
+        --text-dim: #888;
     }
     
-    /* ===== BASE ===== */
+    /* Base */
     .stApp { 
-        background: var(--bg-gradient) !important; 
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-        color: var(--text) !important;
+        background: var(--bg) !important; 
+        font-family: 'Inter', sans-serif !important;
     }
     
-    /* ===== SIDEBAR PREMIUM ===== */
+    /* Sidebar */
     [data-testid="stSidebar"] { 
-        background: linear-gradient(180deg, #0a0a0a 0%, #111 100%) !important;
+        background: var(--bg) !important;
         border-right: 1px solid var(--border) !important;
     }
     
-    [data-testid="stSidebar"] .stRadio > label {
-        color: var(--text-secondary) !important;
-    }
-    
-    /* ===== TARJETAS PRINCIPALES (GLASSMORPHISM) ===== */
-    .patrimonio-card {
-        background: linear-gradient(145deg, var(--neon-green) 0%, #a8d700 100%) !important;
-        border-radius: 24px;
-        padding: 28px;
-        color: #000;
-        box-shadow: 0 20px 60px rgba(200, 255, 0, 0.2);
-        position: relative;
-        overflow: hidden;
-    }
-    
-    .patrimonio-card::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 100%;
-        height: 100%;
-        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
-        pointer-events: none;
-    }
-    
-    .glass-card {
-        background: var(--surface-glass) !important;
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid var(--border-glow);
-        border-radius: 20px;
-        padding: 24px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    
-    .glass-card:hover {
-        border-color: var(--neon-green);
-        box-shadow: 0 12px 48px rgba(200, 255, 0, 0.1);
-        transform: translateY(-2px);
-    }
-    
-    /* ===== MÉTRICAS MEJORADAS ===== */
+    /* Métricas - Tarjetas simples con borde neón */
     [data-testid="stMetric"] {
-        background: var(--card-bg) !important;
+        background: var(--surface) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 16px !important;
-        padding: 20px 24px !important;
-        transition: all 0.3s ease !important;
+        border-radius: 12px !important;
+        padding: 20px !important;
     }
     
     [data-testid="stMetric"]:hover {
-        border-color: var(--neon-green) !important;
-        box-shadow: 0 0 30px rgba(200, 255, 0, 0.15) !important;
-        transform: translateY(-2px);
+        border-color: var(--neon-blue) !important;
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.2) !important;
     }
     
     [data-testid="stMetricValue"] {
         color: var(--text) !important;
-        font-size: 2rem !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.5px !important;
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
     }
     
     [data-testid="stMetricLabel"] {
-        color: var(--text-secondary) !important;
-        font-size: 0.8rem !important;
-        font-weight: 500 !important;
+        color: var(--text-dim) !important;
+        font-size: 0.85rem !important;
         text-transform: uppercase !important;
-        letter-spacing: 0.5px !important;
     }
     
-    [data-testid="stMetricDelta"] {
-        font-weight: 600 !important;
-    }
-    
-    /* ===== BOTONES PREMIUM ===== */
+    /* Botones - Neón brillante */
     .stButton > button {
         background: transparent !important;
-        color: var(--neon-green) !important;
-        border: 2px solid var(--neon-green) !important;
-        border-radius: 12px !important;
-        padding: 12px 24px !important;
+        color: var(--neon-blue) !important;
+        border: 2px solid var(--neon-blue) !important;
+        border-radius: 8px !important;
+        padding: 10px 20px !important;
         font-weight: 600 !important;
-        font-size: 0.9rem !important;
-        letter-spacing: 0.3px !important;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        transition: all 0.2s !important;
     }
     
     .stButton > button:hover {
-        background: var(--neon-green) !important;
+        background: var(--neon-blue) !important;
         color: #000 !important;
-        box-shadow: 0 0 40px rgba(200, 255, 0, 0.4) !important;
-        transform: translateY(-2px) !important;
+        box-shadow: 0 0 25px rgba(0, 212, 255, 0.5) !important;
     }
     
-    .stButton > button:active {
-        transform: translateY(0) !important;
-    }
-    
-    /* Botones Circulares para Acciones Rápidas */
-    .action-btn {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        border: 2px solid var(--border);
-        background: var(--surface);
-        transition: all 0.3s ease;
-        cursor: pointer;
-        text-decoration: none;
-    }
-    
-    .action-btn:hover {
-        transform: scale(1.1);
-        box-shadow: 0 0 25px currentColor;
-    }
-    
-    .action-btn.gasto { color: var(--neon-pink); border-color: var(--neon-pink); }
-    .action-btn.ingreso { color: var(--neon-green); border-color: var(--neon-green); }
-    .action-btn.transfer { color: var(--neon-blue); border-color: var(--neon-blue); }
-    .action-btn.cuentas { color: var(--neon-orange); border-color: var(--neon-orange); }
-    
-    /* ===== BARRA DE PROGRESO PREMIUM ===== */
-    .progress-container {
-        background: var(--border);
-        border-radius: 10px;
-        height: 12px;
-        overflow: hidden;
-        position: relative;
-    }
-    
-    .progress-bar {
-        height: 100%;
-        border-radius: 10px;
-        transition: width 0.5s ease;
-        background: linear-gradient(90deg, var(--neon-green) 0%, #a8d700 100%);
-        box-shadow: 0 0 15px rgba(200, 255, 0, 0.5);
-    }
-    
-    .progress-bar.warning {
-        background: linear-gradient(90deg, var(--warning) 0%, #d97706 100%);
-        box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
-    }
-    
-    .progress-bar.danger {
-        background: linear-gradient(90deg, var(--danger) 0%, #dc2626 100%);
-        box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
-    }
-    
-    /* ===== TOOLTIPS OCULTOS ===== */
+    /* Ocultar tooltip "Press to submit form" */
     .stButton > button::after,
     .stFormSubmitButton > button::after,
-    [data-testid="stFormSubmitButton"] > button::after,
+    [data-testid="stFormSubmitButton"] > button::after {
+        display: none !important;
+    }
+    
     button[kind="formSubmit"]::before,
     button[kind="formSubmit"]::after,
     [data-testid="baseButton-secondary"]::after,
-    [data-testid="baseButton-primary"]::after,
-    [data-baseweb="tooltip"] {
+    [data-testid="baseButton-primary"]::after {
         display: none !important;
         content: none !important;
     }
     
-    /* ===== INPUTS MODERNOS ===== */
+    /* Ocultar tooltips en general */
+    [data-baseweb="tooltip"] {
+        display: none !important;
+    }
+    
+    /* Inputs */
     input, textarea, select {
         background: var(--surface) !important;
         border: 1px solid var(--border) !important;
-        border-radius: 12px !important;
+        border-radius: 8px !important;
         color: var(--text) !important;
-        padding: 12px 16px !important;
-        transition: all 0.2s ease !important;
     }
     
-    input:focus, textarea:focus, select:focus {
-        border-color: var(--neon-green) !important;
-        box-shadow: 0 0 20px rgba(200, 255, 0, 0.2) !important;
-        outline: none !important;
+    input:focus, textarea:focus {
+        border-color: var(--neon-blue) !important;
+        box-shadow: 0 0 10px rgba(0, 212, 255, 0.3) !important;
     }
     
-    /* ===== TABS PREMIUM ===== */
-    .stTabs [data-baseweb="tab-list"] {
-        background: var(--surface) !important;
-        border-radius: 12px !important;
-        padding: 4px !important;
-        gap: 4px !important;
-    }
-    
+    /* Tabs */
     .stTabs [data-baseweb="tab"] {
         color: var(--text-dim) !important;
-        border-radius: 10px !important;
-        padding: 10px 20px !important;
-        font-weight: 500 !important;
-        transition: all 0.2s ease !important;
-    }
-    
-    .stTabs [data-baseweb="tab"]:hover {
-        color: var(--text-secondary) !important;
-        background: var(--border) !important;
+        border-radius: 8px !important;
     }
     
     .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        color: #000 !important;
-        background: var(--neon-green) !important;
-        border-bottom: none !important;
+        color: var(--neon-blue) !important;
+        border-bottom: 2px solid var(--neon-blue) !important;
     }
     
-    /* ===== TABLAS PREMIUM ===== */
+    /* Tablas */
     .stDataFrame {
         border: 1px solid var(--border) !important;
-        border-radius: 16px !important;
-        overflow: hidden !important;
+        border-radius: 12px !important;
     }
     
-    /* ===== SCROLLBAR ELEGANTE ===== */
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: var(--bg); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb { 
-        background: var(--border-glow); 
-        border-radius: 4px;
-        transition: background 0.2s ease;
-    }
-    ::-webkit-scrollbar-thumb:hover { background: var(--neon-green); }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--neon-blue); }
     
-    /* ===== HEADERS CON ESTILO ===== */
-    h1 { 
-        color: var(--text) !important;
-        font-weight: 800 !important;
-        font-size: 2.2rem !important;
-        letter-spacing: -0.5px !important;
-    }
-    
-    h2 { 
+    /* Headers con glow sutil */
+    h1, h2, h3 { 
         color: var(--text) !important;
         font-weight: 700 !important;
-        font-size: 1.5rem !important;
     }
-    
-    h3 { 
-        color: var(--text-secondary) !important;
-        font-weight: 600 !important;
-        font-size: 1.1rem !important;
-    }
-    
-    /* ===== BADGE ALERTA ===== */
-    .badge-alert {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 14px;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-    
-    .badge-alert.warning {
-        background: rgba(245, 158, 11, 0.15);
-        color: var(--warning);
-        border: 1px solid rgba(245, 158, 11, 0.3);
-    }
-    
-    .badge-alert.danger {
-        background: rgba(239, 68, 68, 0.15);
-        color: var(--danger);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-    }
-    
-    .badge-alert.success {
-        background: rgba(34, 197, 94, 0.15);
-        color: var(--success);
-        border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-    
-    /* ===== RESUMEN CARD ===== */
-    .summary-card {
-        background: var(--card-bg);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 20px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-    
-    .summary-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-    }
-    
-    .summary-icon.green { background: var(--neon-green-dim); }
-    .summary-icon.blue { background: rgba(0, 212, 255, 0.15); }
-    .summary-icon.pink { background: rgba(255, 51, 102, 0.15); }
-    
-    /* ===== FAB (Floating Action Button) ===== */
-    .fab-container {
-        position: fixed;
-        bottom: 80px;
-        right: 30px;
-        z-index: 9999;
-    }
-    
-    .fab-btn {
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, var(--neon-green) 0%, #a8d700 100%);
-        border: none;
-        box-shadow: 0 8px 25px rgba(200, 255, 0, 0.4);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        color: #000;
-        transition: all 0.3s ease;
-    }
-    
-    .fab-btn:hover {
-        transform: scale(1.1) rotate(90deg);
-        box-shadow: 0 12px 35px rgba(200, 255, 0, 0.6);
-    }
-    
-    /* ===== ANIMACIONES ===== */
-    @keyframes pulse-glow {
-        0%, 100% { box-shadow: 0 0 20px rgba(200, 255, 0, 0.3); }
-        50% { box-shadow: 0 0 40px rgba(200, 255, 0, 0.6); }
-    }
-    
-    @keyframes slide-up {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .animate-pulse { animation: pulse-glow 2s infinite; }
-    .animate-slide-up { animation: slide-up 0.5s ease-out; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -563,8 +312,8 @@ except:
 
 st.markdown("""
 <div style="text-align: center; padding: 0 0 20px 0;">
-    <h2 style="color: #c8ff00; margin: 0; font-weight: 800;">💰 Ge$torGasto$</h2>
-    <p style="color: #a0a0a0; font-size: 0.85rem; margin: 5px 0 0 0;">Tu Asistente Financiero con IA</p>
+    <h2 style="color: #4ade80; margin: 0;">💰 Ge$torGasto$</h2>
+    <p style="color: #9ca3af; font-size: 0.85rem; margin: 5px 0 0 0;">Auditor Financiero con IA</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -590,8 +339,8 @@ st.sidebar.markdown("---")
 # Selector de Módulo
 modulo = st.sidebar.radio(
     "Navegación", 
-    ["🏠 Inicio", "💸 Egresos", "💰 Ingresos", "🏦 Cuentas", "🐷 Bolsillos", "🤝 Deudas", "🤖 Asistente IA"],
-    index=0, # Default: Inicio (Dashboard)
+    ["📊 Balance", "💰 Ingresos", "💸 Egresos", "🤝 Deudas"],
+    index=2, # Default: Egresos
     key="navegacion_principal"
 )
 
@@ -1142,661 +891,7 @@ def render_deudas():
             
     except Exception as e:
         st.error(f"Error cargando Deudas: {e}")
-
-# ============================================================
-# RENDER INICIO - DASHBOARD PREMIUM
-# ============================================================
-def render_inicio():
-    """Dashboard principal con vista estilo premium."""
     
-    # Inicializar configuración de presupuesto en sesión
-    if 'presupuesto_mensual' not in st.session_state:
-        st.session_state.presupuesto_mensual = 1000000  # Default 1M COP
-    if 'meta_ahorro' not in st.session_state:
-        st.session_state.meta_ahorro = 200000  # Default 200K COP
-    
-    try:
-        # Cargar datos
-        sh_gastos = connect_sheets(0)
-        sh_ingresos = connect_sheets("Ingresos")
-        sh_deudas = connect_sheets("Deudas")
-        
-        df_gastos = pd.DataFrame(sh_gastos.get_all_records())
-        df_ingresos = pd.DataFrame(sh_ingresos.get_all_records())
-        df_deudas = pd.DataFrame(sh_deudas.get_all_records())
-        
-        # Calcular totales
-        total_ingresos = pd.to_numeric(df_ingresos['Monto'], errors='coerce').sum() if not df_ingresos.empty and 'Monto' in df_ingresos.columns else 0
-        total_gastos = pd.to_numeric(df_gastos['Monto'], errors='coerce').sum() if not df_gastos.empty and 'Monto' in df_gastos.columns else 0
-        disponible = total_ingresos - total_gastos
-        
-        # Ahorro (si existe hoja Bolsillos)
-        try:
-            sh_bolsillos = connect_sheets("Bolsillos")
-            df_bolsillos = pd.DataFrame(sh_bolsillos.get_all_records())
-            total_ahorrado = pd.to_numeric(df_bolsillos['Ahorrado'], errors='coerce').sum() if not df_bolsillos.empty and 'Ahorrado' in df_bolsillos.columns else 0
-        except:
-            total_ahorrado = 0
-        
-        patrimonio_total = disponible + total_ahorrado
-        
-        # ============================================================
-        # TARJETA PATRIMONIO PRINCIPAL
-        # ============================================================
-        # Determinar estado de gasto
-        presupuesto = st.session_state.presupuesto_mensual
-        porcentaje_gastado = (total_gastos / presupuesto * 100) if presupuesto > 0 else 0
-        
-        if porcentaje_gastado > 100:
-            estado_badge = '<span class="badge-alert danger">🔥 Excedido</span>'
-        elif porcentaje_gastado > 80:
-            estado_badge = '<span class="badge-alert warning">⚠️ Gastando Más</span>'
-        else:
-            estado_badge = '<span class="badge-alert success">✅ En Control</span>'
-        
-        st.markdown(f"""
-        <div class="patrimonio-card animate-slide-up">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
-                <div>
-                    <p style="margin: 0; font-size: 0.85rem; opacity: 0.7; font-weight: 500;">Patrimonio Total 👁</p>
-                    <h1 style="margin: 8px 0 0 0; font-size: 2.8rem; font-weight: 800; color: #000;">
-                        ${patrimonio_total:,.0f}
-                    </h1>
-                </div>
-                {estado_badge}
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-                <div style="background: rgba(0,0,0,0.1); padding: 16px; border-radius: 16px;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        <span style="font-size: 1.2rem;">💳</span>
-                        <span style="font-size: 0.8rem; opacity: 0.7;">Disponible</span>
-                    </div>
-                    <p style="margin: 0; font-size: 1.4rem; font-weight: 700;">${disponible:,.0f}</p>
-                </div>
-                <div style="background: rgba(0,0,0,0.1); padding: 16px; border-radius: 16px;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                        <span style="font-size: 1.2rem;">🐷</span>
-                        <span style="font-size: 0.8rem; opacity: 0.7;">Ahorrado</span>
-                    </div>
-                    <p style="margin: 0; font-size: 1.4rem; font-weight: 700; color: #22c55e;">${total_ahorrado:,.0f}</p>
-                </div>
-            </div>
-            
-            <div style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
-                <div>
-                    <span style="font-size: 0.75rem; opacity: 0.6;">restante</span>
-                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">${presupuesto - total_gastos:,.0f}</p>
-                </div>
-                <div style="text-align: right;">
-                    <span style="font-size: 0.75rem; opacity: 0.6;">Ingresos del Período</span>
-                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #22c55e;">↑ ${total_ingresos:,.0f}</p>
-                </div>
-                <div style="text-align: right;">
-                    <span style="font-size: 0.75rem; opacity: 0.6;">Gastos del Período</span>
-                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #ef4444;">↓ ${total_gastos:,.0f}</p>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # ============================================================
-        # ACCIONES RÁPIDAS
-        # ============================================================
-        st.markdown("### Acciones Rápidas")
-        
-        col1, col2, col3, col4, col5 = st.columns(5)
-        
-        with col1:
-            if st.button("➖\nGasto", key="quick_gasto", use_container_width=True):
-                dialog_gasto()
-        with col2:
-            if st.button("➕\nIngreso", key="quick_ingreso", use_container_width=True):
-                dialog_ingreso()
-        with col3:
-            if st.button("↔️\nTransfer", key="quick_transfer", use_container_width=True):
-                st.toast("💡 Próximamente: Transferencias entre cuentas")
-        with col4:
-            if st.button("🏦\nCuentas", key="quick_cuentas", use_container_width=True):
-                st.session_state.navegacion_principal = "🏦 Cuentas"
-                st.rerun()
-        with col5:
-            if st.button("📁\nCategorías", key="quick_cats", use_container_width=True):
-                st.toast("💡 Próximamente: Gestión de categorías")
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # ============================================================
-        # RESUMEN FINANCIERO RÁPIDO
-        # ============================================================
-        st.markdown("### Resumen Financiero Rápido")
-        
-        col_prom, col_pres = st.columns(2)
-        
-        # Calcular promedio diario
-        dias_mes = datetime.now().day
-        promedio_diario = total_gastos / dias_mes if dias_mes > 0 else 0
-        meta_diaria = presupuesto / 30  # Asumiendo mes de 30 días
-        
-        with col_prom:
-            st.markdown(f"""
-            <div class="glass-card">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div class="summary-icon green">📈</div>
-                    <span style="color: #a0a0a0; font-size: 0.85rem;">Promedio Diario</span>
-                </div>
-                <h2 style="margin: 0; color: #fff; font-size: 1.8rem;">${promedio_diario:,.0f}</h2>
-                <small style="color: #666;">{dias_mes} días transcurridos</small>
-                <div style="margin-top: 12px; padding: 8px 12px; background: rgba(200,255,0,0.1); border-radius: 8px; display: inline-block;">
-                    <span style="color: #c8ff00; font-size: 0.8rem;">Meta: ${meta_diaria:,.0f}/día</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        with col_pres:
-            restante = presupuesto - total_gastos
-            porcentaje_usado = min(porcentaje_gastado, 100)
-            
-            # Determinar color de la barra
-            if porcentaje_gastado > 90:
-                bar_class = "danger"
-            elif porcentaje_gastado > 70:
-                bar_class = "warning"
-            else:
-                bar_class = ""
-            
-            st.markdown(f"""
-            <div class="glass-card">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                    <div class="summary-icon blue">✅</div>
-                    <span style="color: #a0a0a0; font-size: 0.85rem;">restante</span>
-                </div>
-                <h2 style="margin: 0; color: #fff; font-size: 1.8rem;">${restante:,.0f}</h2>
-                <small style="color: #666;">Presupuesto</small>
-                <div class="progress-container" style="margin-top: 12px;">
-                    <div class="progress-bar {bar_class}" style="width: {porcentaje_usado}%;"></div>
-                </div>
-                <div style="margin-top: 8px;">
-                    <span style="color: {'#22c55e' if porcentaje_gastado < 50 else '#f59e0b' if porcentaje_gastado < 80 else '#ef4444'}; font-size: 0.8rem;">
-                        {porcentaje_gastado:.0f}% Usado
-                    </span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # ============================================================
-        # ÚLTIMOS MOVIMIENTOS
-        # ============================================================
-        st.markdown("### 📋 Últimos Movimientos")
-        
-        movimientos = []
-        
-        if not df_gastos.empty:
-            for _, row in df_gastos.tail(5).iterrows():
-                movimientos.append({
-                    'Fecha': row.get('Fecha', ''),
-                    'Tipo': '💸 Gasto',
-                    'Concepto': row.get('Concepto', ''),
-                    'Monto': f"-${row.get('Monto', 0):,.0f}",
-                    'Divisa': row.get('Divisa', 'COP')
-                })
-        
-        if not df_ingresos.empty:
-            for _, row in df_ingresos.tail(5).iterrows():
-                movimientos.append({
-                    'Fecha': row.get('Fecha', ''),
-                    'Tipo': '💰 Ingreso',
-                    'Concepto': row.get('Concepto', ''),
-                    'Monto': f"+${row.get('Monto', 0):,.0f}",
-                    'Divisa': row.get('Divisa', 'COP')
-                })
-        
-        if movimientos:
-            df_mov = pd.DataFrame(movimientos)
-            df_mov = df_mov.sort_values('Fecha', ascending=False).head(10)
-            st.dataframe(df_mov, use_container_width=True, hide_index=True)
-        else:
-            st.info("No hay movimientos registrados aún.")
-        
-        # ============================================================
-        # CONFIGURACIÓN DE PRESUPUESTO (Colapsado)
-        # ============================================================
-        with st.expander("⚙️ Configurar Presupuesto y Metas"):
-            col_p1, col_p2 = st.columns(2)
-            with col_p1:
-                nuevo_presupuesto = st.number_input(
-                    "Presupuesto Mensual (COP)", 
-                    min_value=0.0, 
-                    value=float(st.session_state.presupuesto_mensual),
-                    step=50000.0,
-                    key="input_presupuesto"
-                )
-            with col_p2:
-                nueva_meta = st.number_input(
-                    "Meta de Ahorro Mensual (COP)", 
-                    min_value=0.0, 
-                    value=float(st.session_state.meta_ahorro),
-                    step=10000.0,
-                    key="input_meta_ahorro"
-                )
-            
-            if st.button("💾 Guardar Configuración", key="save_config"):
-                st.session_state.presupuesto_mensual = nuevo_presupuesto
-                st.session_state.meta_ahorro = nueva_meta
-                st.success("✅ Configuración guardada")
-                st.rerun()
-                
-    except Exception as e:
-        st.error(f"Error cargando dashboard: {e}")
-        import traceback
-        st.code(traceback.format_exc())
-
-# ============================================================
-# RENDER CUENTAS - GESTIÓN DE CUENTAS BANCARIAS
-# ============================================================
-def render_cuentas():
-    """Gestión de cuentas bancarias y billeteras."""
-    st.title("🏦 Gestión de Cuentas")
-    
-    # Botón para agregar
-    col_btn, _ = st.columns([1, 4])
-    if col_btn.button("➕ Añadir cuenta", use_container_width=True, type="primary"):
-        dialog_cuenta()
-    
-    try:
-        # Intentar cargar hoja Cuentas
-        try:
-            sh = connect_sheets("Cuentas")
-            records = sh.get_all_records()
-        except:
-            # Si no existe, mostrar ejemplo y opción de crear
-            st.info("📋 No existe la hoja 'Cuentas'. Crea cuentas para comenzar.")
-            records = []
-        
-        if records:
-            df = pd.DataFrame(records)
-            
-            # Calcular totales
-            saldo_total = pd.to_numeric(df['Saldo'], errors='coerce').sum() if 'Saldo' in df.columns else 0
-            
-            # Contar por tipo
-            tipos = df['Tipo'].value_counts().to_dict() if 'Tipo' in df.columns else {}
-            
-            # Tarjeta de resumen
-            st.markdown(f"""
-            <div class="patrimonio-card" style="margin-bottom: 24px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <p style="margin: 0; font-size: 0.85rem; opacity: 0.7;">Saldo Total</p>
-                        <h1 style="margin: 8px 0 0 0; font-size: 2.5rem; font-weight: 800; color: #000;">
-                            ${saldo_total:,.0f}
-                        </h1>
-                    </div>
-                    <div style="text-align: right;">
-                        <span style="background: rgba(0,0,0,0.15); padding: 6px 12px; border-radius: 20px; font-size: 0.8rem;">
-                            {len(records)} cuentas
-                        </span>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 16px; margin-top: 20px;">
-                    <div>
-                        <span style="font-size: 0.75rem; opacity: 0.6;">📊 Balance del Período</span>
-                        <p style="margin: 0; font-weight: 600;">${saldo_total:,.0f}</p>
-                    </div>
-                    <div>
-                        <span style="font-size: 0.75rem; opacity: 0.6;">📁 Portafolio</span>
-                        <p style="margin: 0; font-weight: 600;">{len(tipos)} Tipos</p>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # Filtros
-            st.markdown("**Cuentas** - Gestiona tus cuentas")
-            
-            col_filter, _ = st.columns([2, 3])
-            with col_filter:
-                filtro_tipo = st.selectbox("Filtrar:", ["Todos"] + list(tipos.keys()), key="filtro_cuenta_tipo")
-            
-            # Aplicar filtro
-            df_display = df.copy()
-            if filtro_tipo != "Todos":
-                df_display = df_display[df_display['Tipo'] == filtro_tipo]
-            
-            # Mostrar cuentas como tarjetas
-            cols = st.columns(2)
-            iconos = {
-                "Efectivo": "💵", "Ahorros": "🐷", "Corriente": "🏦", 
-                "Crédito": "💳", "Inversión": "📈", "Otro": "💰"
-            }
-            colores = {
-                "Efectivo": "#22c55e", "Ahorros": "#c8ff00", "Corriente": "#00d4ff",
-                "Crédito": "#ff3366", "Inversión": "#a855f7", "Otro": "#888"
-            }
-            
-            for idx, (_, row) in enumerate(df_display.iterrows()):
-                with cols[idx % 2]:
-                    tipo = row.get('Tipo', 'Otro')
-                    icono = iconos.get(tipo, '💰')
-                    color = colores.get(tipo, '#888')
-                    
-                    st.markdown(f"""
-                    <div class="glass-card" style="margin-bottom: 16px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div style="width: 48px; height: 48px; background: {color}22; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
-                                    {icono}
-                                </div>
-                                <div>
-                                    <h4 style="margin: 0; color: #fff;">{row.get('Nombre', 'Sin nombre')}</h4>
-                                    <small style="color: #666;">{tipo}</small>
-                                </div>
-                            </div>
-                            <div style="text-align: right;">
-                                <p style="margin: 0; font-size: 1.3rem; font-weight: 700; color: {color};">
-                                    ${row.get('Saldo', 0):,.0f}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="glass-card" style="text-align: center; padding: 40px;">
-                <p style="font-size: 3rem; margin: 0;">🏦</p>
-                <h3 style="color: #fff; margin: 16px 0 8px 0;">Sin cuentas registradas</h3>
-                <p style="color: #666;">Añade tu primera cuenta para comenzar a gestionar tus finanzas.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-    except Exception as e:
-        st.error(f"Error cargando cuentas: {e}")
-
-@st.dialog("🏦 Añadir Nueva Cuenta")
-def dialog_cuenta():
-    with st.form("form_cuenta_modal"):
-        nombre = st.text_input("Nombre de la cuenta", placeholder="Ej: Nubank, Efectivo...")
-        
-        c1, c2 = st.columns(2)
-        tipo = c1.selectbox("Tipo", ["Efectivo", "Ahorros", "Corriente", "Crédito", "Inversión", "Otro"])
-        saldo = c2.number_input("Saldo inicial", min_value=0.0, step=10000.0)
-        
-        divisa = st.selectbox("Divisa", ["COP", "USD", "EUR"])
-        
-        if st.form_submit_button("💾 Guardar", use_container_width=True):
-            if nombre:
-                try:
-                    # Intentar conectar o crear hoja
-                    try:
-                        sh = connect_sheets("Cuentas")
-                    except:
-                        # Crear hoja si no existe
-                        GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
-                        gc = gspread.service_account(filename="credentials.json")
-                        spreadsheet = gc.open(GOOGLE_SHEET_NAME)
-                        sh = spreadsheet.add_worksheet(title="Cuentas", rows=100, cols=10)
-                        sh.append_row(["ID", "Nombre", "Tipo", "Saldo", "Divisa", "Icono", "Color", "Activa"])
-                    
-                    # Agregar cuenta
-                    id_cuenta = f"CTA_{int(pd.Timestamp.now().timestamp())}"
-                    sh.append_row([id_cuenta, nombre, tipo, saldo, divisa, "", "", "SÍ"])
-                    
-                    st.toast(f"✅ Cuenta '{nombre}' creada")
-                    st.cache_data.clear()
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            else:
-                st.warning("Ingresa un nombre para la cuenta")
-
-# ============================================================
-# RENDER BOLSILLOS - METAS DE AHORRO
-# ============================================================
-def render_bolsillos():
-    """Gestión de bolsillos de ahorro con metas."""
-    st.title("🐷 Bolsillos de Ahorro")
-    
-    # Botón para crear
-    col_btn, _ = st.columns([1, 4])
-    if col_btn.button("➕ Crear Bolsillo", use_container_width=True, type="primary"):
-        dialog_bolsillo()
-    
-    try:
-        # Intentar cargar hoja Bolsillos
-        try:
-            sh = connect_sheets("Bolsillos")
-            records = sh.get_all_records()
-        except:
-            records = []
-        
-        # Calcular total ahorrado
-        total_ahorrado = sum(pd.to_numeric([r.get('Ahorrado', 0) for r in records], errors='coerce')) if records else 0
-        
-        # Header con total
-        st.markdown(f"""
-        <div style="text-align: center; padding: 20px 0;">
-            <p style="color: #666; font-size: 0.9rem; margin: 0;">Total Ahorrado</p>
-            <h1 style="color: #c8ff00; font-size: 2.5rem; margin: 8px 0; font-weight: 800;">${total_ahorrado:,.0f}</h1>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown(f"**Tus Bolsillos** - {len(records)} bolsillo(s)")
-        
-        if records:
-            df = pd.DataFrame(records)
-            
-            # Mostrar bolsillos
-            cols = st.columns(3)
-            iconos_bolsillo = {"Casa": "🏠", "Viaje": "✈️", "Auto": "🚗", "Educación": "📚", "Emergencia": "🆘", "Otro": "💰"}
-            
-            for idx, (_, row) in enumerate(df.iterrows()):
-                with cols[idx % 3]:
-                    nombre = row.get('Nombre', 'Sin nombre')
-                    meta = float(row.get('Meta', 0))
-                    ahorrado = float(row.get('Ahorrado', 0))
-                    progreso = (ahorrado / meta * 100) if meta > 0 else 0
-                    icono = iconos_bolsillo.get(row.get('Icono', 'Otro'), '💰')
-                    
-                    # Color según progreso
-                    if progreso >= 100:
-                        color = "#22c55e"
-                    elif progreso >= 50:
-                        color = "#c8ff00"
-                    else:
-                        color = "#ff9500"
-                    
-                    st.markdown(f"""
-                    <div class="glass-card" style="margin-bottom: 16px; text-align: center;">
-                        <div style="width: 56px; height: 56px; background: {color}22; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin: 0 auto 12px auto;">
-                            {icono}
-                        </div>
-                        <h4 style="margin: 0 0 4px 0; color: #fff;">{nombre}</h4>
-                        <p style="margin: 0; font-size: 1.4rem; font-weight: 700; color: {color};">${ahorrado:,.0f}</p>
-                        <small style="color: #666;">Ahorrado</small>
-                        
-                        <div class="progress-container" style="margin: 16px 0 8px 0;">
-                            <div class="progress-bar" style="width: {min(progreso, 100)}%; background: linear-gradient(90deg, {color} 0%, {color}aa 100%);"></div>
-                        </div>
-                        <small style="color: #888;">{progreso:.0f}% de ${meta:,.0f}</small>
-                    </div>
-                    """, unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="glass-card" style="text-align: center; padding: 40px;">
-                <p style="font-size: 3rem; margin: 0;">🐷</p>
-                <h3 style="color: #fff; margin: 16px 0 8px 0;">Sin bolsillos de ahorro</h3>
-                <p style="color: #666;">Crea tu primer bolsillo para empezar a ahorrar hacia tus metas.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-    except Exception as e:
-        st.error(f"Error cargando bolsillos: {e}")
-
-@st.dialog("🐷 Crear Nuevo Bolsillo")
-def dialog_bolsillo():
-    with st.form("form_bolsillo_modal"):
-        nombre = st.text_input("Nombre del bolsillo", placeholder="Ej: Casita, Viaje...")
-        
-        c1, c2 = st.columns(2)
-        meta = c1.number_input("Meta de ahorro", min_value=0.0, step=50000.0)
-        icono = c2.selectbox("Icono", ["Casa", "Viaje", "Auto", "Educación", "Emergencia", "Otro"])
-        
-        ahorrado_inicial = st.number_input("Ahorro inicial (opcional)", min_value=0.0, step=10000.0)
-        
-        if st.form_submit_button("💾 Crear Bolsillo", use_container_width=True):
-            if nombre and meta > 0:
-                try:
-                    try:
-                        sh = connect_sheets("Bolsillos")
-                    except:
-                        GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
-                        gc = gspread.service_account(filename="credentials.json")
-                        spreadsheet = gc.open(GOOGLE_SHEET_NAME)
-                        sh = spreadsheet.add_worksheet(title="Bolsillos", rows=100, cols=10)
-                        sh.append_row(["ID", "Nombre", "Meta", "Ahorrado", "Icono", "Color", "FechaCreacion"])
-                    
-                    id_bolsillo = f"BOL_{int(pd.Timestamp.now().timestamp())}"
-                    sh.append_row([id_bolsillo, nombre, meta, ahorrado_inicial, icono, "#c8ff00", str(datetime.now().date())])
-                    
-                    st.toast(f"✅ Bolsillo '{nombre}' creado")
-                    st.cache_data.clear()
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            else:
-                st.warning("Ingresa nombre y meta de ahorro")
-
-# ============================================================
-# RENDER ASISTENTE IA - CHATBOT FINANCIERO
-# ============================================================
-def render_asistente_ia():
-    """Asistente IA conversacional para finanzas."""
-    st.title("🤖 Asistente de Ge$torGasto$")
-    
-    # Inicializar historial de chat
-    if 'chat_history' not in st.session_state:
-        st.session_state.chat_history = []
-    
-    # Obtener nombre de usuario
-    nombre_usuario = obtener_secreto("ADMIN_USER", "Usuario")
-    
-    # Mensaje de bienvenida
-    st.markdown(f"""
-    <div style="margin-bottom: 24px;">
-        <p style="color: #888; margin: 0;">Hola, {nombre_usuario}</p>
-        <h2 style="color: #fff; margin: 8px 0 0 0; font-weight: 700;">¿Por dónde empezamos?</h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Sugerencias rápidas
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📊 Analizar mis gastos", use_container_width=True, key="sug_analizar"):
-            st.session_state.pending_question = "Analiza mis gastos del último mes y dame recomendaciones"
-    with col2:
-        if st.button("➕ Añadir transacción", use_container_width=True, key="sug_add"):
-            dialog_gasto()
-    
-    col3, col4 = st.columns(2)
-    with col3:
-        if st.button("📋 Revisar presupuesto", use_container_width=True, key="sug_pres"):
-            st.session_state.pending_question = "¿Cómo voy con mi presupuesto este mes?"
-    with col4:
-        if st.button("💡 ¿Cómo puedo ahorrar más?", use_container_width=True, key="sug_ahorro"):
-            st.session_state.pending_question = "Dame consejos personalizados para ahorrar más dinero"
-    
-    st.markdown("---")
-    
-    # Historial de chat
-    for msg in st.session_state.chat_history:
-        if msg['role'] == 'user':
-            st.markdown(f"""
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-                <div style="background: #c8ff00; color: #000; padding: 12px 16px; border-radius: 16px 16px 4px 16px; max-width: 70%;">
-                    {msg['content']}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div style="display: flex; justify-content: flex-start; margin-bottom: 12px;">
-                <div style="background: #222; color: #fff; padding: 12px 16px; border-radius: 16px 16px 16px 4px; max-width: 70%;">
-                    {msg['content']}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Procesar pregunta pendiente
-    if 'pending_question' in st.session_state:
-        pregunta = st.session_state.pop('pending_question')
-        procesar_pregunta_ia(pregunta)
-        st.rerun()
-    
-    # Input de chat
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col_input, col_send = st.columns([5, 1])
-    with col_input:
-        user_input = st.text_input("Escribe tu pregunta...", key="chat_input", label_visibility="collapsed", placeholder="Añadir: cena $32")
-    with col_send:
-        if st.button("🎤", key="btn_send"):
-            if user_input:
-                procesar_pregunta_ia(user_input)
-                st.rerun()
-
-def procesar_pregunta_ia(pregunta):
-    """Procesa una pregunta del usuario con IA."""
-    # Agregar pregunta al historial
-    st.session_state.chat_history.append({'role': 'user', 'content': pregunta})
-    
-    try:
-        # Cargar datos para contexto
-        sh_gastos = connect_sheets(0)
-        df_gastos = pd.DataFrame(sh_gastos.get_all_records())
-        
-        total_gastos = pd.to_numeric(df_gastos['Monto'], errors='coerce').sum() if not df_gastos.empty and 'Monto' in df_gastos.columns else 0
-        
-        # Configurar Gemini
-        import google.generativeai as genai
-        GEMINI_API_KEY = obtener_secreto("GEMINI_API_KEY")
-        
-        if GEMINI_API_KEY:
-            genai.configure(api_key=GEMINI_API_KEY)
-            model = genai.GenerativeModel('gemini-flash-latest')
-            
-            # Crear prompt con contexto
-            contexto = f"""
-            Eres un asistente financiero personal amigable llamado Ge$torGasto$ AI.
-            
-            DATOS DEL USUARIO:
-            - Total gastado este mes: ${total_gastos:,.0f} COP
-            - Número de transacciones: {len(df_gastos)}
-            
-            INSTRUCCIONES:
-            - Responde en español, de forma breve y amigable
-            - Usa emojis ocasionalmente
-            - Da consejos prácticos y personalizados
-            - Si preguntan por transacciones específicas, menciona que pueden verlas en la sección Egresos
-            
-            PREGUNTA DEL USUARIO: {pregunta}
-            """
-            
-            response = model.generate_content(contexto)
-            respuesta = response.text
-        else:
-            respuesta = "⚠️ No tengo configurada la API de IA. Configura GEMINI_API_KEY para activar el asistente."
-        
-        st.session_state.chat_history.append({'role': 'assistant', 'content': respuesta})
-        
-    except Exception as e:
-        st.session_state.chat_history.append({'role': 'assistant', 'content': f"⚠️ Error procesando: {str(e)}"})
-
 def render_balance():
     st.title("📊 Balance Global")
     
@@ -2457,17 +1552,11 @@ def render_egresos():
 # ============================================================
 # ENRUTAMIENTO FINAL
 # ============================================================
-if modulo == "🏠 Inicio":
-    render_inicio()
-elif modulo == "💸 Egresos":
-    render_egresos()
+if modulo == "📊 Balance":
+    render_balance()
 elif modulo == "💰 Ingresos":
     render_ingresos()
-elif modulo == "🏦 Cuentas":
-    render_cuentas()
-elif modulo == "🐷 Bolsillos":
-    render_bolsillos()
+elif modulo == "💸 Egresos":
+    render_egresos()
 elif modulo == "🤝 Deudas":
     render_deudas()
-elif modulo == "🤖 Asistente IA":
-    render_asistente_ia()
