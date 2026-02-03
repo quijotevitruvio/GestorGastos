@@ -1149,11 +1149,22 @@ def render_deudas():
 def render_inicio():
     """Dashboard principal con vista estilo premium."""
     
-    # Inicializar configuración de presupuesto en sesión
-    if 'presupuesto_mensual' not in st.session_state:
-        st.session_state.presupuesto_mensual = 1000000  # Default 1M COP
-    if 'meta_ahorro' not in st.session_state:
-        st.session_state.meta_ahorro = 200000  # Default 200K COP
+    # Cargar configuración de presupuesto desde Google Sheets
+    if 'presupuesto_cargado' not in st.session_state:
+        try:
+            sh_config = connect_sheets("Configuracion")
+            records = sh_config.get_all_records()
+            if records:
+                config = records[0]  # Primera fila tiene la config
+                st.session_state.presupuesto_mensual = float(config.get('PresupuestoMensual', 1000000))
+                st.session_state.meta_ahorro = float(config.get('MetaAhorro', 200000))
+            else:
+                st.session_state.presupuesto_mensual = 1000000
+                st.session_state.meta_ahorro = 200000
+        except:
+            st.session_state.presupuesto_mensual = 1000000
+            st.session_state.meta_ahorro = 200000
+        st.session_state.presupuesto_cargado = True
     
     try:
         # Cargar datos
@@ -1257,14 +1268,14 @@ def render_inicio():
                 dialog_ingreso()
         with col3:
             if st.button("↔️\nTransfer", key="quick_transfer", use_container_width=True):
-                st.toast("💡 Próximamente: Transferencias entre cuentas")
+                dialog_transferencia()
         with col4:
             if st.button("🏦\nCuentas", key="quick_cuentas", use_container_width=True):
                 st.session_state.navegacion_principal = "🏦 Cuentas"
                 st.rerun()
         with col5:
             if st.button("📁\nCategorías", key="quick_cats", use_container_width=True):
-                st.toast("💡 Próximamente: Gestión de categorías")
+                dialog_categorias()
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -1387,7 +1398,35 @@ def render_inicio():
             if st.button("💾 Guardar Configuración", key="save_config"):
                 st.session_state.presupuesto_mensual = nuevo_presupuesto
                 st.session_state.meta_ahorro = nueva_meta
-                st.success("✅ Configuración guardada")
+                
+                # Guardar en Google Sheets
+                try:
+                    try:
+                        sh_config = connect_sheets("Configuracion")
+                    except:
+                        # Crear hoja si no existe
+                        GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
+                        gc = gspread.service_account(filename="credentials.json")
+                        spreadsheet = gc.open(GOOGLE_SHEET_NAME)
+                        sh_config = spreadsheet.add_worksheet(title="Configuracion", rows=10, cols=10)
+                        sh_config.append_row(["PresupuestoMensual", "MetaAhorro", "FechaActualizacion"])
+                    
+                    # Buscar si ya existe configuración
+                    all_data = sh_config.get_all_values()
+                    if len(all_data) > 1:
+                        # Actualizar fila existente
+                        sh_config.update_cell(2, 1, nuevo_presupuesto)
+                        sh_config.update_cell(2, 2, nueva_meta)
+                        sh_config.update_cell(2, 3, str(datetime.now()))
+                    else:
+                        # Crear nueva fila
+                        sh_config.append_row([nuevo_presupuesto, nueva_meta, str(datetime.now())])
+                    
+                    st.cache_data.clear()
+                    st.success("✅ Configuración guardada en la nube")
+                except Exception as e:
+                    st.warning(f"Guardado localmente. Error al sincronizar: {e}")
+                
                 st.rerun()
                 
     except Exception as e:
@@ -1563,6 +1602,170 @@ def dialog_cuenta():
                     st.error(f"Error: {e}")
             else:
                 st.warning("Ingresa un nombre para la cuenta")
+
+# ============================================================
+# TRANSFERENCIAS ENTRE CUENTAS
+# ============================================================
+@st.dialog("↔️ Transferir entre Cuentas")
+def dialog_transferencia():
+    """Diálogo para transferir dinero entre cuentas."""
+    
+    # Cargar cuentas disponibles
+    try:
+        sh = connect_sheets("Cuentas")
+        records = sh.get_all_records()
+        cuentas = {r.get('Nombre', f"Cuenta {i}"): r for i, r in enumerate(records)}
+    except:
+        cuentas = {}
+    
+    if len(cuentas) < 2:
+        st.warning("⚠️ Necesitas al menos 2 cuentas para hacer transferencias.")
+        st.info("Ve a 🏦 Cuentas para crear más cuentas.")
+        return
+    
+    with st.form("form_transferencia"):
+        st.markdown("### Mover dinero entre cuentas")
+        
+        nombres_cuentas = list(cuentas.keys())
+        
+        c1, c2 = st.columns(2)
+        cuenta_origen = c1.selectbox("📤 Desde", nombres_cuentas, key="trans_origen")
+        cuenta_destino = c2.selectbox("📥 Hacia", nombres_cuentas, key="trans_destino")
+        
+        monto = st.number_input("💰 Monto a transferir", min_value=0.0, step=10000.0)
+        concepto = st.text_input("📝 Concepto (opcional)", placeholder="Ej: Ahorro mensual...")
+        
+        if st.form_submit_button("✅ Realizar Transferencia", use_container_width=True, type="primary"):
+            if cuenta_origen == cuenta_destino:
+                st.error("❌ La cuenta de origen y destino deben ser diferentes")
+            elif monto <= 0:
+                st.warning("⚠️ El monto debe ser mayor a 0")
+            else:
+                try:
+                    sh = connect_sheets("Cuentas")
+                    all_data = sh.get_all_values()
+                    headers = all_data[0]
+                    
+                    # Encontrar índices de columnas
+                    nombre_idx = headers.index("Nombre")
+                    saldo_idx = headers.index("Saldo")
+                    
+                    # Buscar y actualizar cuentas
+                    for i, row in enumerate(all_data[1:], start=2):  # +2 porque empieza en fila 2
+                        if row[nombre_idx] == cuenta_origen:
+                            saldo_actual = float(row[saldo_idx]) if row[saldo_idx] else 0
+                            nuevo_saldo = saldo_actual - monto
+                            sh.update_cell(i, saldo_idx + 1, nuevo_saldo)  # +1 porque Sheets es 1-indexed
+                        elif row[nombre_idx] == cuenta_destino:
+                            saldo_actual = float(row[saldo_idx]) if row[saldo_idx] else 0
+                            nuevo_saldo = saldo_actual + monto
+                            sh.update_cell(i, saldo_idx + 1, nuevo_saldo)
+                    
+                    # Registrar transferencia en hoja Transferencias
+                    try:
+                        sh_trans = connect_sheets("Transferencias")
+                    except:
+                        GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
+                        gc = gspread.service_account(filename="credentials.json")
+                        spreadsheet = gc.open(GOOGLE_SHEET_NAME)
+                        sh_trans = spreadsheet.add_worksheet(title="Transferencias", rows=100, cols=10)
+                        sh_trans.append_row(["ID", "Fecha", "Origen", "Destino", "Monto", "Concepto"])
+                    
+                    id_trans = f"TRF_{int(pd.Timestamp.now().timestamp())}"
+                    sh_trans.append_row([id_trans, str(datetime.now().date()), cuenta_origen, cuenta_destino, monto, concepto])
+                    
+                    st.toast(f"✅ Transferencia de ${monto:,.0f} realizada")
+                    st.cache_data.clear()
+                    time.sleep(1)
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+# ============================================================
+# GESTIÓN DE CATEGORÍAS
+# ============================================================
+@st.dialog("📁 Gestión de Categorías")
+def dialog_categorias():
+    """Diálogo para gestionar categorías personalizadas."""
+    
+    # Cargar categorías existentes
+    try:
+        sh = connect_sheets("Categorias")
+        records = sh.get_all_records()
+    except:
+        records = []
+    
+    # Categorías por defecto
+    categorias_default = [
+        {"nombre": "Alimentación", "icono": "🍔", "color": "#22c55e"},
+        {"nombre": "Transporte", "icono": "🚗", "color": "#3b82f6"},
+        {"nombre": "Entretenimiento", "icono": "🎮", "color": "#a855f7"},
+        {"nombre": "Salud", "icono": "💊", "color": "#ef4444"},
+        {"nombre": "Educación", "icono": "📚", "color": "#f59e0b"},
+        {"nombre": "Hogar", "icono": "🏠", "color": "#06b6d4"},
+        {"nombre": "Ropa", "icono": "👕", "color": "#ec4899"},
+        {"nombre": "Servicios", "icono": "📱", "color": "#8b5cf6"},
+    ]
+    
+    if not records:
+        records = categorias_default
+    
+    tab1, tab2 = st.tabs(["📋 Ver Categorías", "➕ Agregar Nueva"])
+    
+    with tab1:
+        st.markdown("### Categorías Actuales")
+        for cat in records:
+            nombre = cat.get('nombre', cat.get('Nombre', 'Sin nombre'))
+            icono = cat.get('icono', cat.get('Icono', '📁'))
+            color = cat.get('color', cat.get('Color', '#888'))
+            
+            st.markdown(f"""
+            <div style="display: flex; align-items: center; gap: 12px; padding: 12px; 
+                        background: {color}22; border-radius: 12px; margin-bottom: 8px;
+                        border-left: 4px solid {color};">
+                <span style="font-size: 1.5rem;">{icono}</span>
+                <span style="font-weight: 600; color: #fff;">{nombre}</span>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    with tab2:
+        with st.form("form_nueva_categoria"):
+            st.markdown("### Nueva Categoría")
+            
+            nombre_cat = st.text_input("Nombre", placeholder="Ej: Mascotas, Suscripciones...")
+            
+            c1, c2 = st.columns(2)
+            icono_cat = c1.selectbox("Icono", ["📁", "🛒", "🎁", "💪", "🐕", "✈️", "💡", "🎬", "📦", "🔧"])
+            color_cat = c2.color_picker("Color", "#c8ff00")
+            
+            if st.form_submit_button("💾 Guardar Categoría", use_container_width=True):
+                if nombre_cat:
+                    try:
+                        try:
+                            sh = connect_sheets("Categorias")
+                        except:
+                            GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
+                            gc = gspread.service_account(filename="credentials.json")
+                            spreadsheet = gc.open(GOOGLE_SHEET_NAME)
+                            sh = spreadsheet.add_worksheet(title="Categorias", rows=100, cols=10)
+                            sh.append_row(["ID", "Nombre", "Icono", "Color", "Tipo"])
+                            # Agregar categorías por defecto
+                            for cat_def in categorias_default:
+                                sh.append_row([f"CAT_{categorias_default.index(cat_def)}", 
+                                              cat_def['nombre'], cat_def['icono'], cat_def['color'], "Gasto"])
+                        
+                        id_cat = f"CAT_{int(pd.Timestamp.now().timestamp())}"
+                        sh.append_row([id_cat, nombre_cat, icono_cat, color_cat, "Gasto"])
+                        
+                        st.toast(f"✅ Categoría '{nombre_cat}' creada")
+                        st.cache_data.clear()
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                else:
+                    st.warning("Ingresa un nombre para la categoría")
 
 # ============================================================
 # RENDER BOLSILLOS - METAS DE AHORRO
