@@ -491,9 +491,8 @@ def connect_sheets(target_sheet=0):
         else:
             return sh.worksheet(target_sheet)
     except gspread.exceptions.WorksheetNotFound:
-        # Fallback si no encuentra la hoja específica, intenta crearla o devolver sheet1
-        st.error(f"No se encontró la pestaña '{target_sheet}'. Asegúrate de ejecutar init_finance_sheets.py")
-        return sh.sheet1
+        # Lanzar excepción para que el llamador pueda manejar la creación de la hoja
+        raise gspread.exceptions.WorksheetNotFound(f"Worksheet '{target_sheet}' not found")
     except gspread.exceptions.SpreadsheetNotFound:
         raise ValueError(f"No se encontró la hoja de cálculo: {GOOGLE_SHEET_NAME}")
 
@@ -1205,13 +1204,21 @@ def render_inicio():
         else:
             estado_badge = '<span class="badge-alert success">✅ En Control</span>'
         
+        # Formatear valores
+        patrimonio_fmt = f"${patrimonio_total:,.0f}"
+        disponible_fmt = f"${disponible:,.0f}"
+        ahorrado_fmt = f"${total_ahorrado:,.0f}"
+        restante_fmt = f"${presupuesto - total_gastos:,.0f}"
+        ingresos_fmt = f"${total_ingresos:,.0f}"
+        gastos_fmt = f"${total_gastos:,.0f}"
+        
         st.markdown(f"""
         <div class="patrimonio-card animate-slide-up">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
                 <div>
                     <p style="margin: 0; font-size: 0.85rem; opacity: 0.7; font-weight: 500;">Patrimonio Total 👁</p>
                     <h1 style="margin: 8px 0 0 0; font-size: 2.8rem; font-weight: 800; color: #000;">
-                        ${patrimonio_total:,.0f}
+                        {patrimonio_fmt}
                     </h1>
                 </div>
                 {estado_badge}
@@ -1223,29 +1230,29 @@ def render_inicio():
                         <span style="font-size: 1.2rem;">💳</span>
                         <span style="font-size: 0.8rem; opacity: 0.7;">Disponible</span>
                     </div>
-                    <p style="margin: 0; font-size: 1.4rem; font-weight: 700;">${disponible:,.0f}</p>
+                    <p style="margin: 0; font-size: 1.4rem; font-weight: 700;">{disponible_fmt}</p>
                 </div>
                 <div style="background: rgba(0,0,0,0.1); padding: 16px; border-radius: 16px;">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
                         <span style="font-size: 1.2rem;">🐷</span>
                         <span style="font-size: 0.8rem; opacity: 0.7;">Ahorrado</span>
                     </div>
-                    <p style="margin: 0; font-size: 1.4rem; font-weight: 700; color: #22c55e;">${total_ahorrado:,.0f}</p>
+                    <p style="margin: 0; font-size: 1.4rem; font-weight: 700; color: #22c55e;">{ahorrado_fmt}</p>
                 </div>
             </div>
             
             <div style="display: flex; justify-content: space-between; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(0,0,0,0.1);">
                 <div>
                     <span style="font-size: 0.75rem; opacity: 0.6;">restante</span>
-                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">${presupuesto - total_gastos:,.0f}</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600;">{restante_fmt}</p>
                 </div>
                 <div style="text-align: right;">
                     <span style="font-size: 0.75rem; opacity: 0.6;">Ingresos del Período</span>
-                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #22c55e;">↑ ${total_ingresos:,.0f}</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #22c55e;">↑ {ingresos_fmt}</p>
                 </div>
                 <div style="text-align: right;">
                     <span style="font-size: 0.75rem; opacity: 0.6;">Gastos del Período</span>
-                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #ef4444;">↓ ${total_gastos:,.0f}</p>
+                    <p style="margin: 0; font-size: 1.1rem; font-weight: 600; color: #ef4444;">↓ {gastos_fmt}</p>
                 </div>
             </div>
         </div>
