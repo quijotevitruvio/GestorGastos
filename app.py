@@ -1500,7 +1500,7 @@ def render_cuentas():
     col_img, col_title = st.columns([1, 4])
     with col_img:
         try:
-            st.image("assets/icon_wallet.png", width=80)
+            st.image("assets/icon_wallet.png", width=120)
         except:
             pass
     with col_title:
@@ -1833,7 +1833,7 @@ def render_bolsillos():
     col_img, col_title = st.columns([1, 4])
     with col_img:
         try:
-            st.image("assets/icon_savings.png", width=80)
+            st.image("assets/icon_savings.png", width=120)
         except:
             pass
     with col_title:
@@ -1961,7 +1961,7 @@ def render_asistente_ia():
     col_img, col_title = st.columns([1, 4])
     with col_img:
         try:
-            st.image("assets/icon_ai.png", width=80)
+            st.image("assets/icon_ai.png", width=120)
         except:
             pass
     with col_title:
@@ -2045,11 +2045,20 @@ def procesar_pregunta_ia(pregunta):
     st.session_state.chat_history.append({'role': 'user', 'content': pregunta})
     
     try:
-        # Cargar datos para contexto
+        # Cargar datos para contexto completo
         sh_gastos = connect_sheets(0)
         df_gastos = pd.DataFrame(sh_gastos.get_all_records())
         
+        sh_ingresos = connect_sheets("Ingresos")
+        df_ingresos = pd.DataFrame(sh_ingresos.get_all_records())
+        
+        sh_deudas = connect_sheets("Deudas")
+        df_deudas = pd.DataFrame(sh_deudas.get_all_records())
+        
         total_gastos = pd.to_numeric(df_gastos['Monto'], errors='coerce').sum() if not df_gastos.empty and 'Monto' in df_gastos.columns else 0
+        total_ingresos = pd.to_numeric(df_ingresos['Monto'], errors='coerce').sum() if not df_ingresos.empty and 'Monto' in df_ingresos.columns else 0
+        me_deben = df_deudas[(df_deudas['Tipo'] == 'ME_DEBEN') & (df_deudas['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if not df_deudas.empty and 'MontoOriginal' in df_deudas.columns else 0
+        yo_debo = df_deudas[(df_deudas['Tipo'] == 'YO_DEBO') & (df_deudas['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if not df_deudas.empty and 'MontoOriginal' in df_deudas.columns else 0
         
         # Configurar Gemini
         import google.generativeai as genai
@@ -2063,15 +2072,21 @@ def procesar_pregunta_ia(pregunta):
             contexto = f"""
             Eres un asistente financiero personal amigable llamado Ge$torGasto$ AI.
             
-            DATOS DEL USUARIO:
-            - Total gastado este mes: ${total_gastos:,.0f} COP
-            - Número de transacciones: {len(df_gastos)}
+            DATOS ACTUALES DEL USUARIO:
+            - Ingresos Totales: ${total_ingresos:,.0f}
+            - Gastos Totales: ${total_gastos:,.0f}
+            - Saldo Neto: ${total_ingresos - total_gastos:,.0f}
+            - Me deben (Cobros): ${me_deben:,.0f}
+            - Yo debo (Deudas): ${yo_debo:,.0f}
+            - Transacciones registradas: {len(df_gastos)}
             
             INSTRUCCIONES:
-            - Responde en español, de forma breve y amigable
-            - Usa emojis ocasionalmente
-            - Da consejos prácticos y personalizados
-            - Si preguntan por transacciones específicas, menciona que pueden verlas en la sección Egresos
+            - Responde siempre en español.
+            - Sé breve (max 3-4 párrafos), amigable y profesional.
+            - Usa emojis para hacer la conversación ligera.
+            - Da consejos accionables basados en los números proporcionados.
+            - Si el saldo neto es bajo, sugiere moderar gastos.
+            - Si hay muchas deudas, sugiere priorizar el pago.
             
             PREGUNTA DEL USUARIO: {pregunta}
             """
@@ -2086,201 +2101,6 @@ def procesar_pregunta_ia(pregunta):
     except Exception as e:
         st.session_state.chat_history.append({'role': 'assistant', 'content': f"⚠️ Error procesando: {str(e)}"})
 
-def render_balance():
-    st.title("📊 Balance Global")
-    
-    try:
-        # ============================================================
-        # CARGAR DATOS DE TODOS LOS MÓDULOS
-        # ============================================================
-        sh_gastos = connect_sheets(0)
-        sh_ingresos = connect_sheets("Ingresos")
-        sh_deudas = connect_sheets("Deudas")
-        
-        df_gastos = pd.DataFrame(sh_gastos.get_all_records())
-        df_ingresos = pd.DataFrame(sh_ingresos.get_all_records())
-        df_deudas = pd.DataFrame(sh_deudas.get_all_records())
-        
-        # ============================================================
-        # CALCULAR TOTALES
-        # ============================================================
-        total_ingresos = pd.to_numeric(df_ingresos['Monto'], errors='coerce').sum() if not df_ingresos.empty and 'Monto' in df_ingresos.columns else 0
-        total_gastos = pd.to_numeric(df_gastos['Monto'], errors='coerce').sum() if not df_gastos.empty and 'Monto' in df_gastos.columns else 0
-        ahorro_neto = total_ingresos - total_gastos
-        
-        # Deudas
-        me_deben = df_deudas[(df_deudas['Tipo'] == 'ME_DEBEN') & (df_deudas['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if not df_deudas.empty and 'MontoOriginal' in df_deudas.columns else 0
-        yo_debo = df_deudas[(df_deudas['Tipo'] == 'YO_DEBO') & (df_deudas['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if not df_deudas.empty and 'MontoOriginal' in df_deudas.columns else 0
-        
-        # Tasa de ahorro
-        tasa_ahorro = (ahorro_neto / total_ingresos * 100) if total_ingresos > 0 else 0
-        
-        # Score promedio de gastos
-        score_promedio = pd.to_numeric(df_gastos['Score'], errors='coerce').mean() if not df_gastos.empty and 'Score' in df_gastos.columns else 0
-        
-        # ============================================================
-        # KPIs PRINCIPALES
-        # ============================================================
-        k1, k2, k3, k4 = st.columns(4)
-        
-        k1.metric("💰 Ingresos", f"${total_ingresos:,.0f}")
-        k2.metric("💸 Gastos", f"${total_gastos:,.0f}")
-        k3.metric("🐷 Ahorro Neto", f"${ahorro_neto:,.0f}", 
-                 delta=f"{tasa_ahorro:.1f}% tasa",
-                 delta_color="normal" if ahorro_neto >= 0 else "inverse")
-        k4.metric("📊 Score IA", f"{score_promedio:.1f}/5.0" if score_promedio else "N/A")
-        
-        # Segunda fila de KPIs (Deudas)
-        k5, k6, k7, k8 = st.columns(4)
-        k5.metric("🟢 Me Deben", f"${me_deben:,.0f}")
-        k6.metric("🔴 Yo Debo", f"${yo_debo:,.0f}")
-        k7.metric("📈 Balance Deuda", f"${me_deben - yo_debo:,.0f}",
-                 delta="A favor" if me_deben >= yo_debo else "En contra",
-                 delta_color="normal" if me_deben >= yo_debo else "inverse")
-        k8.metric("📋 Total Registros", len(df_gastos) + len(df_ingresos) + len(df_deudas))
-        
-        st.divider()
-        
-        # ============================================================
-        # GRÁFICOS PROFESIONALES
-        # ============================================================
-        tab_flujo, tab_categorias, tab_tendencia = st.tabs(["💵 Flujo de Caja", "📊 Categorías", "📈 Tendencia"])
-        
-        with tab_flujo:
-            col_bar, col_gauge = st.columns(2)
-            
-            with col_bar:
-                # Gráfico de barras Ingresos vs Egresos
-                fig_bar = px.bar(
-                    x=["Ingresos", "Gastos"],
-                    y=[total_ingresos, total_gastos],
-                    color=["Ingresos", "Gastos"],
-                    color_discrete_map={"Ingresos": "#22c55e", "Gastos": "#ef4444"},
-                    title="Ingresos vs Gastos"
-                )
-                fig_bar.update_layout(template="plotly_dark", showlegend=False)
-                st.plotly_chart(fig_bar, use_container_width=True)
-            
-            with col_gauge:
-                # Gauge de tasa de ahorro
-                import plotly.graph_objects as go
-                fig_gauge = go.Figure(go.Indicator(
-                    mode="gauge+number+delta",
-                    value=tasa_ahorro,
-                    domain={'x': [0, 1], 'y': [0, 1]},
-                    title={'text': "Tasa de Ahorro (%)"},
-                    delta={'reference': 20},  # Meta: 20% de ahorro
-                    gauge={
-                        'axis': {'range': [0, 100]},
-                        'bar': {'color': "#3b82f6"},
-                        'steps': [
-                            {'range': [0, 10], 'color': "#ef4444"},
-                            {'range': [10, 20], 'color': "#f59e0b"},
-                            {'range': [20, 100], 'color': "#22c55e"}
-                        ],
-                        'threshold': {
-                            'line': {'color': "white", 'width': 4},
-                            'thickness': 0.75,
-                            'value': 20
-                        }
-                    }
-                ))
-                fig_gauge.update_layout(template="plotly_dark", height=300)
-                st.plotly_chart(fig_gauge, use_container_width=True)
-        
-        with tab_categorias:
-            if not df_gastos.empty and 'Categoria' in df_gastos.columns:
-                gastos_cat = df_gastos.groupby('Categoria')['Monto'].sum().reset_index()
-                gastos_cat = gastos_cat.sort_values('Monto', ascending=False)
-                
-                col_pie, col_bars = st.columns(2)
-                
-                with col_pie:
-                    fig_pie = px.pie(gastos_cat, values='Monto', names='Categoria', 
-                                     hole=0.4, title="Distribución de Gastos")
-                    fig_pie.update_layout(template="plotly_dark")
-                    st.plotly_chart(fig_pie, use_container_width=True)
-                
-                with col_bars:
-                    fig_hbar = px.bar(gastos_cat.head(5), x='Monto', y='Categoria', 
-                                      orientation='h', title="Top 5 Categorías",
-                                      color='Monto', color_continuous_scale='Reds')
-                    fig_hbar.update_layout(template="plotly_dark", showlegend=False)
-                    st.plotly_chart(fig_hbar, use_container_width=True)
-            else:
-                st.info("No hay datos de gastos para mostrar.")
-        
-        with tab_tendencia:
-            # Combinar ingresos y gastos por fecha
-            df_trend = pd.DataFrame()
-            
-            if not df_gastos.empty and 'Fecha' in df_gastos.columns:
-                df_g = df_gastos.copy()
-                df_g['Fecha'] = pd.to_datetime(df_g['Fecha'], errors='coerce')
-                df_g = df_g.dropna(subset=['Fecha'])
-                df_g = df_g.groupby(df_g['Fecha'].dt.to_period('M')).agg({'Monto': 'sum'}).reset_index()
-                df_g['Fecha'] = df_g['Fecha'].astype(str)
-                df_g['Tipo'] = 'Gastos'
-                df_trend = pd.concat([df_trend, df_g])
-            
-            if not df_ingresos.empty and 'Fecha' in df_ingresos.columns:
-                df_i = df_ingresos.copy()
-                df_i['Fecha'] = pd.to_datetime(df_i['Fecha'], errors='coerce')
-                df_i = df_i.dropna(subset=['Fecha'])
-                df_i = df_i.groupby(df_i['Fecha'].dt.to_period('M')).agg({'Monto': 'sum'}).reset_index()
-                df_i['Fecha'] = df_i['Fecha'].astype(str)
-                df_i['Tipo'] = 'Ingresos'
-                df_trend = pd.concat([df_trend, df_i])
-            
-            if not df_trend.empty:
-                fig_line = px.line(df_trend, x='Fecha', y='Monto', color='Tipo',
-                                   markers=True, title="Tendencia Mensual",
-                                   color_discrete_map={'Ingresos': '#22c55e', 'Gastos': '#ef4444'})
-                fig_line.update_layout(template="plotly_dark")
-                st.plotly_chart(fig_line, use_container_width=True)
-            else:
-                st.info("No hay suficientes datos para mostrar tendencia.")
-        
-        st.divider()
-        
-        # ============================================================
-        # ÚLTIMOS MOVIMIENTOS
-        # ============================================================
-        st.subheader("📋 Últimos Movimientos")
-        
-        movimientos = []
-        
-        if not df_gastos.empty:
-            for _, row in df_gastos.tail(5).iterrows():
-                movimientos.append({
-                    'Fecha': row.get('Fecha', ''),
-                    'Tipo': '💸 Gasto',
-                    'Concepto': row.get('Concepto', ''),
-                    'Monto': f"-${row.get('Monto', 0):,.0f}",
-                    'Divisa': row.get('Divisa', 'COP')
-                })
-        
-        if not df_ingresos.empty:
-            for _, row in df_ingresos.tail(5).iterrows():
-                movimientos.append({
-                    'Fecha': row.get('Fecha', ''),
-                    'Tipo': '💰 Ingreso',
-                    'Concepto': row.get('Concepto', ''),
-                    'Monto': f"+${row.get('Monto', 0):,.0f}",
-                    'Divisa': row.get('Divisa', 'COP')
-                })
-        
-        if movimientos:
-            df_mov = pd.DataFrame(movimientos)
-            df_mov = df_mov.sort_values('Fecha', ascending=False).head(10)
-            st.dataframe(df_mov, use_container_width=True, hide_index=True)
-        else:
-            st.info("No hay movimientos registrados.")
-                
-    except Exception as e:
-        st.error(f"Error calculando balance: {e}")
-        import traceback
-        st.code(traceback.format_exc())
 
     # ============================================================
     # RENDERIZADO DE MÓDULOS
