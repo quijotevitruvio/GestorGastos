@@ -2420,13 +2420,10 @@ def render_admin_panel():
         
         with col1:
             st.subheader("👥 Usuarios Pendientes")
-            pendientes = df_users[df_users['Estado'] == 'PENDIENTE'] or pd.DataFrame() # Handle if empty/error
-            # Fix: pendientes could be empty Series or DataFrame.
-            # If df_users is empty, this fails.
-            if df_users.empty:
-                 pendientes = pd.DataFrame()
+            if not df_users.empty:
+                pendientes = df_users[df_users['Estado'] == 'PENDIENTE']
             else:
-                 pendientes = df_users[df_users['Estado'] == 'PENDIENTE']
+                pendientes = pd.DataFrame()
         
         if pendientes.empty:
             st.info("✅ No hay solicitudes pendientes.")
