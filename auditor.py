@@ -27,8 +27,7 @@ from datetime import datetime
 import gspread
 import google.generativeai as genai
 from dotenv import load_dotenv
-from prompt import AUDITOR_SYSTEM_PROMPT
-from utils import clean_json_string, print_result
+from utils import clean_json_string, print_result, obtener_secreto, connect_sheets_utility, AUDITOR_SYSTEM_PROMPT
 from colorama import init
 
 # Inicializar colorama (colores en consola)
@@ -38,24 +37,10 @@ init()
 load_dotenv()
 
 # ============================================================
-# FUNCIONES PARA OBTENER SECRETOS
-# ============================================================
-# Soporta tanto .env (local) como st.secrets (Streamlit Cloud)
-
-def obtener_secreto(nombre, default=None):
-    """
-    Obtiene un secreto desde st.secrets (Cloud) o os.getenv (local).
-    """
-    try:
-        import streamlit as st
-        return st.secrets.get(nombre, os.getenv(nombre, default))
-    except:
-        return os.getenv(nombre, default)
-
-# ============================================================
 # CONSTANTES
 # ============================================================
 GEMINI_API_KEY = obtener_secreto("GEMINI_API_KEY")
+GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
 GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
 GOOGLE_CREDENTIALS_FILE = "credentials.json"
 
@@ -82,45 +67,9 @@ def configure_gemini():
         system_instruction=AUDITOR_SYSTEM_PROMPT
     )
 
-
 def connect_sheets():
-    """
-    Conecta con Google Sheets usando credenciales disponibles.
-    
-    Intenta:
-    1. Archivo credentials.json local
-    2. Variable de entorno GOOGLE_CREDENTIALS
-    3. st.secrets (Streamlit Cloud)
-    
-    Returns:
-        Worksheet (primera hoja del spreadsheet)
-    """
-    # Opción 1: Archivo local
-    if os.path.exists(GOOGLE_CREDENTIALS_FILE):
-        gc = gspread.service_account(filename=GOOGLE_CREDENTIALS_FILE)
-    
-    # Opción 2: Variable de entorno (para cloud)
-    elif os.getenv("GOOGLE_CREDENTIALS"):
-        creds_json = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
-        gc = gspread.service_account_from_dict(creds_json)
-    
-    # Opción 3: Streamlit secrets
-    else:
-        try:
-            import streamlit as st
-            creds_json = json.loads(st.secrets["GOOGLE_CREDENTIALS"])
-            gc = gspread.service_account_from_dict(creds_json)
-        except:
-            raise FileNotFoundError(
-                f"No se encontró {GOOGLE_CREDENTIALS_FILE}, "
-                "ni GOOGLE_CREDENTIALS en env o st.secrets"
-            )
-    
-    try:
-        sh = gc.open(GOOGLE_SHEET_NAME)
-        return sh.sheet1 
-    except gspread.exceptions.SpreadsheetNotFound:
-        raise ValueError(f"No se encontró la hoja de cálculo: {GOOGLE_SHEET_NAME}")
+    """Wrapper para mantener compatibilidad con utils"""
+    return connect_sheets_utility()
 
 
 # ============================================================

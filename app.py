@@ -35,6 +35,8 @@ from validators import (  # Validación de datos
     sanitizar_texto, validar_monto, validar_fecha, validar_concepto,
     validar_formulario_gasto, validar_formulario_ingreso, validar_formulario_deuda
 )
+from utils import obtener_secreto, connect_sheets_utility, clean_json_string, CHAT_SYSTEM_PROMPT
+import actions
 
 # ============================================================
 # CONFIGURACIÓN INICIAL DE LA APP
@@ -60,80 +62,33 @@ except Exception as e:
 # Esta parte permite que la app funcione tanto en tu PC (usando .env)
 # como en la nube (usando la configuración de Streamlit Cloud).
 
-def obtener_secreto(nombre, default=None):
-    """
-    Busca una clave de acceso (secreto).
-    Primero intenta en la configuración de la nube, y si no existe, en el archivo .env local.
-    """
-    try:
-        if nombre in st.secrets:
-            return st.secrets[nombre]
-    except:
-        pass
-    return os.getenv(nombre, default)
+
+# ============================================================
+# FUNCIONES DE SEGURIDAD (SECRETOS)
+# ============================================================
+# Función 'obtener_secreto' importada de utils.py
 
 # ============================================================
 # CONEXIÓN CON GOOGLE SHEETS
 # ============================================================
+# ============================================================
+# CONEXIÓN CON GOOGLE SHEETS
+# ============================================================
+@st.cache_resource(ttl=3600)
+@st.cache_resource(ttl=3600)
+def connect_sheets_cached(target_sheet=0):
+    """Interfaz con caché para la utilidad de conexión."""
+    return connect_sheets_utility(target_sheet)
+
 def connect_sheets(target_sheet=0):
-    """
-    Establece la conexión con tu hoja de cálculo en la nube.
-    target_sheet: Puede ser el número de la pestaña (0 para la primera) 
-                  o el nombre exacto ("Ingresos", "Deudas", etc.)
-    """
-    GOOGLE_CREDENTIALS_FILE = "credentials.json"
-    GOOGLE_SHEET_NAME = obtener_secreto("GOOGLE_SHEET_NAME")
-    
-    gc = None
-    
-    # Opción 1: Archivo local (desarrollo)
-    if os.path.exists(GOOGLE_CREDENTIALS_FILE):
-        gc = gspread.service_account(filename=GOOGLE_CREDENTIALS_FILE)
-    
-    # Opción 2: Variable de entorno
-    elif os.getenv("GOOGLE_CREDENTIALS"):
-        creds_json = json.loads(os.getenv("GOOGLE_CREDENTIALS"))
-        gc = gspread.service_account_from_dict(creds_json)
-    
-    # Opción 3: Streamlit secrets (tabla TOML o string JSON)
-    else:
-        try:
-            creds = st.secrets["GOOGLE_CREDENTIALS"]
-            # Si es un AttrDict/dict (formato tabla TOML), convertir a dict normal
-            if hasattr(creds, 'to_dict'):
-                creds_dict = creds.to_dict()
-            elif isinstance(creds, dict):
-                creds_dict = dict(creds)
-            elif isinstance(creds, str):
-                creds_dict = json.loads(creds)
-            else:
-                creds_dict = dict(creds)
-            
-            gc = gspread.service_account_from_dict(creds_dict)
-        except Exception as e:
-            raise FileNotFoundError(f"No se encontraron credenciales de Google: {e}")
-    
-    try:
-        sh = gc.open(GOOGLE_SHEET_NAME)
-        if target_sheet == 0:
-            return sh.sheet1
-        else:
-            return sh.worksheet(target_sheet)
-    except gspread.exceptions.WorksheetNotFound:
-        # Auto-crear hoja 'Usuarios' si no existe
-        if target_sheet == "Usuarios":
-            sh = gc.open(GOOGLE_SHEET_NAME)
-            ws = sh.add_worksheet("Usuarios", rows=100, cols=5)
-            ws.append_row(["Usuario", "Password_Hash", "Rol", "Estado", "Fecha_Registro"])
-            # Crear admin por defecto si es la primera vez
-            admin_pass = obtener_secreto("ADMIN_PASSWORD", "admin123")
-            pass_hash = hashlib.sha256(admin_pass.encode()).hexdigest()
-            ws.append_row([obtener_secreto("ADMIN_USER", "admin"), pass_hash, "ADMIN", "ACTIVO", str(datetime.now())])
-            return ws
-        else:
-            raise gspread.exceptions.WorksheetNotFound(f"Worksheet '{target_sheet}' not found")
-    except gspread.exceptions.SpreadsheetNotFound:
-        raise ValueError(f"No se encontró la hoja de cálculo: {GOOGLE_SHEET_NAME}")
+    """Wrapper compatible."""
+    return connect_sheets_cached(target_sheet)
+
+@st.cache_data(ttl=60)
+def get_data(sheet_name=0):
+    """Obtiene los registros de una hoja usando caché de datos."""
+    ws = connect_sheets(sheet_name)
+    return ws.get_all_records()
 
 # ============================================================
 # ============================================================
@@ -191,20 +146,6 @@ def verificar_login():
             background-position: center;
             background-attachment: fixed;
         }}
-        .login-card {{
-            background: rgba(20, 20, 20, 0.85);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(200, 255, 0, 0.2);
-            border-radius: 24px;
-            padding: 40px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-        }}
-        .stTextInput > div > div > input {{
-            background: rgba(255,255,255,0.05) !important;
-            border: 1px solid rgba(255,255,255,0.1) !important;
-            color: white !important;
-            border-radius: 12px !important;
-        }}
         </style>
     """, unsafe_allow_html=True)
     
@@ -242,8 +183,7 @@ def verificar_login():
                             else:
                                 # 2. Check Google Sheets
                                 pass_hash = hashlib.sha256(password.encode()).hexdigest()
-                                sh_users = connect_sheets("Usuarios")
-                                df_users = pd.DataFrame(sh_users.get_all_records())
+                                df_users = pd.DataFrame(get_data("Usuarios"))
                                 
                                 user_row = df_users[df_users['Usuario'] == usuario]
                                 if not user_row.empty:
@@ -405,9 +345,9 @@ def render_ingresos():
         filtro_fecha = f2.date_input("Rango de Fechas", [])
 
     # --- Ver Datos (Full Width) ---
+    # --- Ver Datos (Full Width) ---
     try:
-        sh = connect_sheets("Ingresos")
-        records = sh.get_all_records()
+        records = get_data("Ingresos")
         
         if records:
             df = pd.DataFrame(records)
@@ -674,9 +614,9 @@ def render_deudas():
         filtro_persona = f3.text_input("Buscar Persona")
 
     # --- Main Content: Dashboard (Full Width) ---
+    # --- Main Content: Dashboard (Full Width) ---
     try:
-        sh = connect_sheets("Deudas")
-        records = sh.get_all_records()
+        records = get_data("Deudas")
         
         if records:
             df = pd.DataFrame(records)
@@ -1375,8 +1315,7 @@ def dialog_transferencia():
     
     # Cargar cuentas disponibles
     try:
-        sh = connect_sheets("Cuentas")
-        records = sh.get_all_records()
+        records = get_data("Cuentas")
         cuentas = {r.get('Nombre', f"Cuenta {i}"): r for i, r in enumerate(records)}
     except:
         cuentas = {}
@@ -1555,8 +1494,7 @@ def render_bolsillos():
     try:
         # Intentar cargar hoja Bolsillos
         try:
-            sh = connect_sheets("Bolsillos")
-            records = sh.get_all_records()
+            records = get_data("Bolsillos")
         except:
             records = []
         
@@ -1658,182 +1596,160 @@ def dialog_bolsillo():
             else:
                 st.warning("Ingresa nombre y meta de ahorro")
 
+
 # ============================================================
 # RENDER ASISTENTE IA - CHATBOT FINANCIERO
 # ============================================================
 def render_asistente_ia():
     """Asistente IA conversacional para finanzas."""
     
-    # Header con imagen del robot
-    col_img, col_title = st.columns([1, 4])
-    with col_img:
-        try:
-            st.image("assets/icon_ai.png", width=120)
-        except:
-            pass
-    with col_title:
-        st.title("🤖 Asistente de Ge$torGasto$")
-        st.caption("Tu consejero financiero con Inteligencia Artificial")
-    
-    # Selector de Personalidad
-    modo_ia = st.radio("Personalidad:", ["🎓 Mentor Sabio", "🤬 Asesor Tóxico"], horizontal=True, key="modo_ia_selector")
-    
-    # Inicializar historial de chat
+    # Header & Personalidad
+    c1, c2 = st.columns([1, 4])
+    with c1:
+        try: st.image("assets/icon_ai.png", width=80)
+        except: st.write("🤖")
+    with c2:
+        st.subheader("Asistente Financiero")
+        # Selector de Personalidad
+        modos = list(utils.PERSONALITY_PROMPTS.keys())
+        if "ai_mood" not in st.session_state: st.session_state.ai_mood = "Neutro"
+        
+        c_mood, c_info = st.columns([2, 3])
+        with c_mood:
+            st.session_state.ai_mood = st.selectbox("Temperamento:", modos, index=modos.index(st.session_state.ai_mood), key="sb_mood", label_visibility="collapsed")
+        with c_info:
+            st.caption(f"Modo: *{st.session_state.ai_mood}*")
+
+    st.divider()
+
+    # Inicializar historial
     if 'chat_history' not in st.session_state:
         st.session_state.chat_history = []
     
-    # Obtener nombre de usuario
-    nombre_usuario = obtener_secreto("ADMIN_USER", "Usuario")
-    
-    # Mensaje de bienvenida
-    st.markdown(f"""
-    <div style="margin-bottom: 24px;">
-        <p style="color: #888; margin: 0;">Hola, {nombre_usuario}</p>
-        <h2 style="color: #fff; margin: 8px 0 0 0; font-weight: 700;">¿Por dónde empezamos?</h2>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Sugerencias Contextuales Inteligentes (Lógica Simple)
-    try:
-        # Calcular top gasto
-        sh_g = connect_sheets(0)
-        df_g = pd.DataFrame(sh_g.get_all_records())
-        if not df_g.empty and 'Monto' in df_g.columns:
-            top_cat = df_g.groupby('Categoria')['Monto'].sum().sort_values(ascending=False).index[0]
-            sug_gasto = f"Analiza por qué gasto tanto en {top_cat}"
-        else:
-            sug_gasto = "Analiza mis gastos recientes"
-    except:
-        sug_gasto = "Analiza mis gastos"
-
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button(f"📊 {sug_gasto}", use_container_width=True, key="sug_ai_1"):
-            st.session_state.pending_question = sug_gasto
-    with col2:
-        if st.button("🔮 Proyecta mis finanzas a fin de mes", use_container_width=True, key="sug_ai_2"):
-            st.session_state.pending_question = "¿Cómo terminaré el mes basado en mi ritmo actual?"
-    
-    st.markdown("---")
-    
-    # Historial de chat
+    # Renderizar historial
     for msg in st.session_state.chat_history:
-        if msg['role'] == 'user':
-            st.markdown(f"""
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-                <div style="background: #c8ff00; color: #000; padding: 12px 16px; border-radius: 16px 16px 4px 16px; max-width: 70%;">
-                    {msg['content']}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            # Renderizar respuesta del asistente (posible HTML/Gráficos)
-            contenido = msg['content']
+        with st.chat_message(msg['role']):
+            st.markdown(msg['content'])
+
+    # --- ZONA DE CONFIRMACIÓN DE ACCIÓN ---
+    if st.session_state.get('pending_action'):
+        action = st.session_state.pending_action
+        intent = action.get('intent')
+        data = action.get('data', {})
+        
+        with st.status(f"🤔 Confirmar {intent.upper()}", expanded=True):
+            st.json(data)
             
-            # Detectar si hay comandos de gráficos (ej: [GRAPH: PIE])
-            # Por simplicidad, renderizamos el contenido. Si tuviéramos lógica compleja de gráficos, iría aquí.
-            
-            st.markdown(f"""
-            <div style="display: flex; justify-content: flex-start; margin-bottom: 12px;">
-                <div style="background: #222; color: #fff; padding: 12px 16px; border-radius: 16px 16px 16px 4px; max-width: 80%;">
-                    {contenido}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Procesar pregunta pendiente
-    if 'pending_question' in st.session_state:
-        pregunta = st.session_state.pop('pending_question')
-        procesar_pregunta_ia(pregunta, modo=modo_ia)
-        st.rerun()
-    
-    # Input de chat
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col_input, col_send = st.columns([5, 1])
-    with col_input:
-        user_input = st.text_input("Escribe tu pregunta...", key="chat_input", label_visibility="collapsed", placeholder="Añadir: cena $32")
-    with col_send:
-        if st.button("🎤", key="btn_send"):
-            if user_input:
-                procesar_pregunta_ia(user_input, modo=modo_ia)
+            c_conf, c_canc = st.columns(2)
+            if c_conf.button("✅ Confirmar", use_container_width=True, type="primary"):
+                try:
+                    res = {'success': False, 'message': 'Error desconocido'}
+                    if intent == 'gasto':
+                        res = actions.add_expense(
+                            fecha=datetime.now().date(),
+                            concepto=data.get('concepto'),
+                            monto=data.get('monto'),
+                            divisa=data.get('divisa', 'COP'),
+                            categoria=data.get('categoria', 'Otros'),
+                            medio_pago=data.get('medio_pago', 'Efectivo'),
+                            banco=data.get('banco', 'N/A'),
+                            lugar=data.get('lugar', 'N/A')
+                        )
+                    elif intent == 'ingreso':
+                        res = actions.add_income(
+                            fecha=datetime.now().date(),
+                            concepto=data.get('concepto'),
+                            monto=data.get('monto'),
+                            divisa=data.get('divisa', 'COP'),
+                            fuente=data.get('fuente', 'Otros')
+                        )
+                    elif intent == 'deuda':
+                        res = actions.add_debt(
+                            tipo_operacion=data.get('tipo', 'YO_DEBO'),
+                            persona=data.get('persona'),
+                            concepto=data.get('concepto', 'Préstamo'),
+                            monto=data.get('monto'),
+                            divisa=data.get('divisa', 'COP'),
+                            fecha_limite=datetime.now().date() + timedelta(days=30)
+                        )
+                    
+                    if res['success']:
+                        st.session_state.chat_history.append({'role': 'assistant', 'content': f"✅ {res['message']}"})
+                        st.toast(res['message'])
+                        st.cache_data.clear()
+                    else:
+                        st.session_state.chat_history.append({'role': 'assistant', 'content': f"❌ {res['message']}"})
+                
+                except Exception as e:
+                    st.session_state.chat_history.append({'role': 'assistant', 'content': f"❌ Error: {str(e)}"})
+
+                st.session_state.pending_action = None
                 st.rerun()
 
-def procesar_pregunta_ia(pregunta, modo="🎓 Mentor Sabio"):
+            if c_canc.button("❌ Cancelar", use_container_width=True):
+                st.session_state.chat_history.append({'role': 'assistant', 'content': "❌ Cancelado."})
+                st.session_state.pending_action = None
+                st.rerun()
+
+    # Input de chat
+    if prompt := st.chat_input("Escribe tu movimiento..."):
+        procesar_pregunta_ia(prompt, st.session_state.ai_mood)
+        st.rerun()
+
+def procesar_pregunta_ia(pregunta, modo="Neutro"):
     """Procesa una pregunta del usuario con IA."""
-    # Agregar pregunta al historial
     st.session_state.chat_history.append({'role': 'user', 'content': pregunta})
     
     try:
-        # Cargar datos para contexto completo
-        sh_gastos = connect_sheets(0)
-        df_gastos = pd.DataFrame(sh_gastos.get_all_records())
-        
-        sh_ingresos = connect_sheets("Ingresos")
-        df_ingresos = pd.DataFrame(sh_ingresos.get_all_records())
-        
-        sh_deudas = connect_sheets("Deudas")
-        df_deudas = pd.DataFrame(sh_deudas.get_all_records())
-        
-        total_gastos = pd.to_numeric(df_gastos['Monto'], errors='coerce').sum() if not df_gastos.empty and 'Monto' in df_gastos.columns else 0
-        total_ingresos = pd.to_numeric(df_ingresos['Monto'], errors='coerce').sum() if not df_ingresos.empty and 'Monto' in df_ingresos.columns else 0
-        me_deben = df_deudas[(df_deudas['Tipo'] == 'ME_DEBEN') & (df_deudas['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if not df_deudas.empty and 'MontoOriginal' in df_deudas.columns else 0
-        yo_debo = df_deudas[(df_deudas['Tipo'] == 'YO_DEBO') & (df_deudas['Estado'] == 'PENDIENTE')]['MontoOriginal'].sum() if not df_deudas.empty and 'MontoOriginal' in df_deudas.columns else 0
-        
-        # Configurar Gemini
         import google.generativeai as genai
         GEMINI_API_KEY = obtener_secreto("GEMINI_API_KEY")
         
-        if GEMINI_API_KEY:
-            genai.configure(api_key=GEMINI_API_KEY)
-            model = genai.GenerativeModel('gemini-flash-latest')
-            
-            estilo = ""
-            if "Tóxico" in modo:
-                estilo = """
-                MODO: ASESOR TÓXICO / GROSERO.
-                - Tu tono debe ser sarcástico, directo y un poco hiriente (pero divertido).
-                - Regaña al usuario por sus malos hábitos financieros.
-                - No tengas piedad, usa mayúsculas para enfatizar errores.
-                - Ejemplo: "¿Otra vez gastando en comida basura? Así nunca vas a salir de pobre."
-                """
-            else:
-                estilo = """
-                MODO: MENTOR SABIO.
-                - Tono profesional, empático y constructivo.
-                - Explica los conceptos con paciencia.
-                - Motiva al usuario a mejorar.
-                """
+        if not GEMINI_API_KEY:
+             st.session_state.chat_history.append({'role': 'assistant', 'content': "⚠️ No encuentro la GEMINI_API_KEY. Configurala en .env o secrets."})
+             return
 
-            # Crear prompt con contexto
-            contexto = f"""
-            Eres Ge$torGasto$ AI.
-            {estilo}
-            
-            DATOS ACTUALES DEL USUARIO:
-            - Ingresos Totales: ${total_ingresos:,.0f}
-            - Gastos Totales: ${total_gastos:,.0f}
-            - Saldo Neto: ${total_ingresos - total_gastos:,.0f}
-            - Me deben (Cobros): ${me_deben:,.0f}
-            - Yo debo (Deudas): ${yo_debo:,.0f}
-            
-            INSTRUCCIONES:
-            - Responde siempre en español.
-            - Sé breve (max 3 párrafos).
-            - Si te piden un gráfico, escribe explícitamente "[GRAPH: PIE]" o "[GRAPH: BAR]" al final de tu respuesta (solo si tiene sentido).
-            
-            PREGUNTA DEL USUARIO: {pregunta}
-            """
-            
-            response = model.generate_content(contexto)
-            respuesta = response.text
-        else:
-            respuesta = "⚠️ No tengo configurada la API de IA. Configura GEMINI_API_KEY para activar el asistente."
+        genai.configure(api_key=GEMINI_API_KEY)
+        # Usamos un modelo disponible confirmado
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
-        st.session_state.chat_history.append({'role': 'assistant', 'content': respuesta})
+        # Contexto financiero actual
+        fecha_actual = datetime.now().strftime("%Y-%m-%d")
         
+        # Inyectar instrucción de personalidad
+        p_instruction = utils.PERSONALITY_PROMPTS.get(modo, utils.PERSONALITY_PROMPTS["Neutro"])
+        full_prompt = CHAT_SYSTEM_PROMPT.format(
+            fecha_actual=fecha_actual,
+            personality_instruction=p_instruction
+        )
+        # Enviar historial reciente para contexto
+        historial_texto = json.dumps([m for m in st.session_state.chat_history[-6:] if m['role'] != 'system'])
+        full_prompt += f"\n\nHISTORIAL:\n{historial_texto}\n\nUSUARIO: {pregunta}"
+        
+        response = model.generate_content(full_prompt)
+        text_response = response.text
+        
+        # Procesar JSON
+        json_str = clean_json_string(text_response)
+        try:
+            result = json.loads(json_str)
+            intent = result.get('intent')
+            response_text = result.get('response')
+            missing = result.get('missing_info', [])
+            
+            if intent in ['gasto', 'ingreso', 'deuda'] and not missing:
+                # LISTO PARA CONFIRMAR
+                st.session_state.pending_action = result
+                st.session_state.chat_history.append({'role': 'assistant', 'content': response_text})
+            else:
+                # CONSULTA, ERROR O FALTAN DATOS
+                st.session_state.chat_history.append({'role': 'assistant', 'content': response_text})
+                
+        except json.JSONDecodeError:
+            # Fallback si no devuelve JSON
+            st.session_state.chat_history.append({'role': 'assistant', 'content': text_response})
+
     except Exception as e:
-        st.session_state.chat_history.append({'role': 'assistant', 'content': f"⚠️ Error procesando: {str(e)}"})
+        st.session_state.chat_history.append({'role': 'assistant', 'content': f"⚠️ Error: {str(e)}"})
 
     # ... (ingresos y deudas ya definidos arriba) ...
 
@@ -2359,6 +2275,130 @@ def render_patrimonio():
             render_deudas()
 
 
+
+# ============================================================
+# GESTIÓN DE PRESUPUESTOS
+# ============================================================
+def render_presupuestos():
+    st.title("📊 Control de Presupuestos")
+    st.caption("Define límites mensuales para tus gastos y monitorea tu progreso.")
+    
+    # 1. VISUALIZACIÓN DE PROGRESO
+    st.subheader("Estado del Mes")
+    
+    with st.spinner("Calculando gastos vs presupuestos..."):
+        status = actions.get_budget_status()
+    
+    if not status:
+        st.info("No hay presupuestos definidos o no se pudieron calcular.")
+    else:
+        for item in status:
+            cat = item['categoria']
+            limite = item['limite']
+            gastado = item['gastado']
+            pct = item['porcentaje'] / 100
+            pct_visual = min(pct, 1.0)
+            
+            # Color basado en porcentaje
+            color_bar = "#22c55e" # Verde
+            if pct > 0.75: color_bar = "#f59e0b" # Naranja
+            if pct > 0.90: color_bar = "#ef4444" # Rojo
+            
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                st.write(f"**{cat}**")
+                st.progress(pct_visual)
+            with c2:
+                st.write(f"${gastado:,.0f} / ${limite:,.0f}")
+                if pct > 1.0:
+                    st.caption(f"⚠️ +${(gastado-limite):,.0f}")
+            
+            st.write("") # Espacio
+            
+    st.divider()
+    
+    # 2. CONFIGURACIÓN DE LÍMITES
+    with st.expander("⚙️ Configurar Nuevos Límites"):
+        with st.form("form_set_budget"):
+            st.write("Establecer o actualizar presupuesto mensual:")
+            cats = ["Comida", "Transporte", "Ocio", "Servicios", "Salud", "Ropa", "Educación", "Ahorro", "Otro"]
+            
+            col_cat, col_monto = st.columns(2)
+            s_cat = col_cat.selectbox("Categoría", cats)
+            s_monto = col_monto.number_input("Límite Mensual ($)", min_value=0.0, step=50000.0)
+            
+            if st.form_submit_button("Guardar Presupuesto", use_container_width=True):
+                res = actions.set_budget(s_cat, s_monto)
+                if res['success']:
+                    st.success(res['message'])
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(res['message'])
+
+
+# ============================================================
+# GESTIÓN DE SUSCRIPCIONES
+# ============================================================
+@st.dialog("📅 Nueva Suscripción")
+def dialog_suscripcion():
+    with st.form("form_suscripcion"):
+        servicio = st.text_input("Servicio", placeholder="Netflix, Spotify, Gym...")
+        
+        c1, c2 = st.columns(2)
+        monto = c1.number_input("Monto", min_value=0.0, step=1000.0)
+        divisa = c2.selectbox("Divisa", ["COP", "USD", "EUR"])
+        
+        c3, c4 = st.columns(2)
+        periodo = c3.selectbox("Frecuencia", ["Mensual", "Anual"])
+        dia_cobro = c4.number_input("Día de Cobro", 1, 31, 1)
+        
+        if st.form_submit_button("Guardar Suscripción", use_container_width=True):
+            res = actions.add_subscription(servicio, monto, divisa, periodo, dia_cobro)
+            if res['success']:
+                st.success(res['message'])
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error(res['message'])
+
+def render_suscripciones():
+    st.title("📅 Suscripciones Recurrentes")
+    
+    # KPI Principal
+    costo_mensual = actions.get_monthly_fixed_cost()
+    st.metric("Costo Fijo Mensual (Aprox)", f"${costo_mensual:,.0f} COP")
+    
+    # Listado
+    st.subheader("Tus Servicios Activos")
+    
+    subs = actions.get_subscriptions()
+    if not subs:
+        st.info("No tienes suscripciones registradas.")
+    else:
+        df = pd.DataFrame(subs)
+        # Mostrar como Dataframe interactivo o Tarjetas
+        # Vamos a usar tarjetas para poder borrar más fácil
+        for i, sub in df.iterrows():
+            with st.container(border=True):
+                c1, c2, c3 = st.columns([3, 2, 1])
+                with c1:
+                    st.write(f"**{sub['Servicio']}**")
+                    st.caption(f"{sub['Periodo']} - Día {sub['Fecha_Cobro']}")
+                with c2:
+                    st.write(f"{sub['Divisa']} {sub['Monto']}")
+                with c3:
+                    if st.button("🗑️", key=f"del_sub_{i}"):
+                        # gspread es 1-based y row 1 es header, asi que index + 2
+                        res = actions.delete_subscription(i + 2)
+                        st.toast(res['message'])
+                        time.sleep(1)
+                        st.rerun()
+
+    st.divider()
+    if st.button("➕ Agregar Suscripción", use_container_width=True):
+        dialog_suscripcion()
+
 # ============================================================
 # PANEL DE ADMINISTRACIÓN (SOLO ADMINS)
 # ============================================================
@@ -2371,46 +2411,52 @@ def render_admin_panel():
         return
 
     try:
+        # 2. Check Google Sheets
         sh_users = connect_sheets("Usuarios")
-        data = sh_users.get_all_records()
-        df_users = pd.DataFrame(data)
+        df_users = pd.DataFrame(get_data("Usuarios"))
         
         col1, col2 = st.columns([2, 1])
         
         with col1:
             st.subheader("👥 Usuarios Pendientes")
-            pendientes = df_users[df_users['Estado'] == 'PENDIENTE']
-            
-            if pendientes.empty:
-                st.info("✅ No hay solicitudes pendientes.")
+            pendientes = df_users[df_users['Estado'] == 'PENDIENTE'] or pd.DataFrame() # Handle if empty/error
+            # Fix: pendientes could be empty Series or DataFrame.
+            # If df_users is empty, this fails.
+            if df_users.empty:
+                 pendientes = pd.DataFrame()
             else:
-                for index, row in pendientes.iterrows():
-                    with st.container():
-                        st.markdown(f"""
-                        <div style="background: #222; padding: 16px; border-radius: 12px; border: 1px solid #444; margin-bottom: 10px;">
-                            <h3 style="margin: 0; color: #fff;">👤 {row['Usuario']}</h3>
-                            <small>Fecha: {row['Fecha_Registro']}</small>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        c1, c2, c3 = st.columns([1.5, 1, 1])
-                        with c1:
-                            nuevo_rol = st.selectbox("Rol Asignado", ["USER", "ADMIN"], key=f"rol_{row['Usuario']}")
-                        with c2:
-                            if st.button(f"✅ Aprobar", key=f"apr_{row['Usuario']}", type="primary"):
-                                cell = sh_users.find(row['Usuario'])
-                                sh_users.update_cell(cell.row, 3, nuevo_rol) # Columna 3 es Rol
-                                sh_users.update_cell(cell.row, 4, "ACTIVO") # Columna 4 es Estado
-                                st.toast(f"Usuario {row['Usuario']} aprobado como {nuevo_rol}.")
-                                time.sleep(1)
-                                st.rerun()
-                        with c3:
-                            if st.button(f"❌ Rechazar", key=f"rej_{row['Usuario']}"):
-                                cell = sh_users.find(row['Usuario'])
-                                sh_users.delete_rows(cell.row)
-                                st.toast(f"Usuario {row['Usuario']} rechazado.")
-                                time.sleep(1)
-                                st.rerun()
+                 pendientes = df_users[df_users['Estado'] == 'PENDIENTE']
+        
+        if pendientes.empty:
+            st.info("✅ No hay solicitudes pendientes.")
+        else:
+            for index, row in pendientes.iterrows():
+                with st.container():
+                    st.markdown(f"""
+                    <div style="background: #222; padding: 16px; border-radius: 12px; border: 1px solid #444; margin-bottom: 10px;">
+                        <h3 style="margin: 0; color: #fff;">👤 {row['Usuario']}</h3>
+                        <small>Fecha: {row['Fecha_Registro']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    c1, c2, c3 = st.columns([1.5, 1, 1])
+                    with c1:
+                        nuevo_rol = st.selectbox("Rol Asignado", ["USER", "ADMIN"], key=f"rol_{row['Usuario']}")
+                    with c2:
+                        if st.button(f"✅ Aprobar", key=f"apr_{row['Usuario']}", type="primary"):
+                            cell = sh_users.find(row['Usuario'])
+                            sh_users.update_cell(cell.row, 3, nuevo_rol) # Columna 3 es Rol
+                            sh_users.update_cell(cell.row, 4, "ACTIVO") # Columna 4 es Estado
+                            st.toast(f"Usuario {row['Usuario']} aprobado como {nuevo_rol}.")
+                            time.sleep(1)
+                            st.rerun()
+                    with c3:
+                        if st.button(f"❌ Rechazar", key=f"rej_{row['Usuario']}"):
+                            cell = sh_users.find(row['Usuario'])
+                            sh_users.delete_rows(cell.row)
+                            st.toast(f"Usuario {row['Usuario']} rechazado.")
+                            time.sleep(1)
+                            st.rerun()
 
         with col2:
             st.subheader("📊 Estadísticas")
@@ -2423,13 +2469,71 @@ def render_admin_panel():
         st.error(f"Error cargando usuarios: {e}")
 
 
+
+# ============================================================
+# SIMULADOR DE ESCENARIOS
+# ============================================================
+def render_simulador():
+    st.title("🔮 Simulador Financiero")
+    st.caption("Proyecta tu futuro financiero y juega con '¿Qué pasaría si...?'")
+    
+    tab1, tab2 = st.tabs(["🚀 Meta de Ahorro", "🔥 Libertad Financiera"])
+    
+    with tab1:
+        st.subheader("Calculadora de Metas")
+        c1, c2 = st.columns(2)
+        meta = c1.number_input("¿Cuánto quieres ahorrar?", value=10000000.0, step=500000.0)
+        ahorro_actual = c2.number_input("Ahorro Actual", value=0.0, step=100000.0)
+        
+        c3, c4 = st.columns(2)
+        ahorro_mensual = c3.number_input("Ahorro Mensual Posible", value=500000.0, step=50000.0)
+        tasa_anual = c4.slider("Rentabilidad Anual Esperada (%)", 0.0, 15.0, 10.0)
+        
+        if ahorro_mensual > 0:
+            # Cálculo simple de interés compuesto mensual
+            r_mensual = (tasa_anual / 100) / 12
+            meses = 0
+            saldo = ahorro_actual
+            data_proy = []
+            
+            while saldo < meta and meses < 360: # Max 30 años
+                saldo = saldo * (1 + r_mensual) + ahorro_mensual
+                meses += 1
+                if meses % 6 == 0: # Guardar datos cada 6 meses para gráfica no muy densa
+                    data_proy.append({"Mes": meses, "Saldo": saldo})
+            
+            # Resultado
+            anios = meses / 12
+            st.success(f"🎉 Alcanzarás tu meta de **${meta:,.0f}** en **{meses} meses** ({anios:.1f} años).")
+            
+            if data_proy:
+                df_proy = pd.DataFrame(data_proy)
+                st.line_chart(df_proy, x="Mes", y="Saldo")
+        else:
+            st.warning("Debes ahorrar algo mensualmente para proyectar.")
+            
+    with tab2:
+        st.subheader("¿Cuándo podrás vivir de tus rentas?")
+        st.write("Regla del 4%: Necesitas 25 veces tus gastos anuales.")
+        
+        gasto_mensual = st.number_input("Gasto Mensual Promedio", value=2000000.0, step=100000.0)
+        
+        numero_fire = gasto_mensual * 12 * 25
+        st.metric("Tu Número de Libertad (FIRE)", f"${numero_fire:,.0f} COP")
+        
+        st.progress(min(ahorro_actual / numero_fire, 1.0) if numero_fire > 0 else 0)
+        st.caption(f"Tienes cubierto el {(ahorro_actual / numero_fire * 100 if numero_fire > 0 else 0):.2f}% de tu libertad.")
+
 # ============================================================
 # ENRUTADOR PRINCIPAL (LÓGICA DE NAVEGACIÓN)
 # ============================================================
-# Mapeo unificado simplificado (4 Secciones + Admin)
+# Mapeo unificado simplificado (7 Secciones + Admin)
 mapeo_modulos = {
     "🏠 Inicio": render_inicio,
     "📒 Movimientos": render_movimientos,
+    "📊 Presupuestos": render_presupuestos,
+    "📅 Suscripciones": render_suscripciones,
+    "🔮 Simulador": render_simulador,
     "💼 Mi Patrimonio": render_patrimonio,
     "🤖 Asistente IA": render_asistente_ia,
     "👮 Panel Admin": render_admin_panel # Solo visible si es admin
