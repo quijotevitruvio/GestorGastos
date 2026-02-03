@@ -1400,7 +1400,17 @@ def render_inicio():
 # ============================================================
 def render_cuentas():
     """Gestión de cuentas bancarias y billeteras."""
-    st.title("🏦 Gestión de Cuentas")
+    
+    # Header con imagen
+    col_img, col_title = st.columns([1, 4])
+    with col_img:
+        try:
+            st.image("assets/icon_wallet.png", width=80)
+        except:
+            pass
+    with col_title:
+        st.title("🏦 Gestión de Cuentas")
+        st.caption("Administra tus cuentas bancarias y billeteras")
     
     # Botón para agregar
     col_btn, _ = st.columns([1, 4])
@@ -1559,7 +1569,17 @@ def dialog_cuenta():
 # ============================================================
 def render_bolsillos():
     """Gestión de bolsillos de ahorro con metas."""
-    st.title("🐷 Bolsillos de Ahorro")
+    
+    # Header con imagen
+    col_img, col_title = st.columns([1, 4])
+    with col_img:
+        try:
+            st.image("assets/icon_savings.png", width=80)
+        except:
+            pass
+    with col_title:
+        st.title("🐷 Bolsillos de Ahorro")
+        st.caption("Ahorra para tus metas y sueños")
     
     # Botón para crear
     col_btn, _ = st.columns([1, 4])
@@ -1677,7 +1697,17 @@ def dialog_bolsillo():
 # ============================================================
 def render_asistente_ia():
     """Asistente IA conversacional para finanzas."""
-    st.title("🤖 Asistente de Ge$torGasto$")
+    
+    # Header con imagen del robot
+    col_img, col_title = st.columns([1, 4])
+    with col_img:
+        try:
+            st.image("assets/icon_ai.png", width=80)
+        except:
+            pass
+    with col_title:
+        st.title("🤖 Asistente de Ge$torGasto$")
+        st.caption("Tu consejero financiero con Inteligencia Artificial")
     
     # Inicializar historial de chat
     if 'chat_history' not in st.session_state:
