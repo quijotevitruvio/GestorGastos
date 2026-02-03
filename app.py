@@ -24,6 +24,7 @@ import pandas as pd          # Manejo de datos tabulares
 import plotly.express as px  # Gráficos interactivos
 import gspread               # Conexión con Google Sheets
 import json
+import base64
 import time
 import os                    # Variables de entorno
 from datetime import datetime, timedelta
@@ -507,6 +508,11 @@ if "authenticated" not in st.session_state:
 
 import extra_streamlit_components as stx
 
+def get_base64_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
 def verificar_login():
     """Muestra el formulario de login si el usuario no está autenticado."""
     
@@ -518,33 +524,76 @@ def verificar_login():
         return True
     
     # 3. Verificar si hay cookie de "recordarme"
-    # Nota: get_all() a veces tarda un poco en cargar en la primera ejecución
     cookies = cookie_manager.get_all()
     if cookies.get("gestor_gastos_auth") == "true":
         st.session_state["authenticated"] = True
         return True
     
-    # 4. Mostrar formulario de login
-    st.title("🔒 Acceso Restringido")
-    
-    with st.form("formulario_login"):
-        usuario = st.text_input("Usuario")
-        contraseña = st.text_input("Contraseña", type="password")
-        recordarme = st.checkbox("💾 Recordarme en este dispositivo")
-        enviado = st.form_submit_button("Entrar")
+    # 4. Mostrar formulario de login con fondo premium
+    bg_img = ""
+    try:
+        bin_str = get_base64_bin_file("assets/hero_bg.png")
+        bg_img = f'data:image/png;base64,{bin_str}'
+    except:
+        pass
         
-        if enviado:
-            if usuario == USUARIO_ADMIN and contraseña == CONTRASEÑA_ADMIN:
-                st.session_state["authenticated"] = True
-                
-                # Si marcó "Recordarme", guardar cookie por 30 días
-                if recordarme:
-                    cookie_manager.set("gestor_gastos_auth", "true", key="set_auth_cookie", expires_at=datetime.now() + timedelta(days=30))
-                
-                st.rerun()
-            else:
-                st.error("Usuario o contraseña incorrectos")
-                
+    st.markdown(f"""
+        <style>
+        .stApp {{
+            background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("{bg_img}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+        div[data-testid="stForm"] {{
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(200, 255, 0, 0.2);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: slide-up 0.8s ease-out;
+        }}
+        .stTextInput > div > div > input {{
+            background: rgba(255,255,255,0.05) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            color: white !important;
+            border-radius: 12px !important;
+        }}
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Intentar copiar assets a static para que Streamlit los sirva si es necesario
+    # (Streamlit 1.10+ sirve /assets pero a veces necesita /static/assets)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("<div style='height: 10vh'></div>", unsafe_allow_html=True)
+        st.markdown("""
+            <div style='text-align: center; margin-bottom: 2rem;'>
+                <h1 style='color: #c8ff00; font-size: 3.5rem; font-weight: 800; margin-bottom: 0;'>Ge$torGasto$</h1>
+                <p style='color: #fff; opacity: 0.8; font-size: 1.1rem;'>Control financiero inteligente con IA</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        with st.form("formulario_login"):
+            usuario = st.text_input("👤 Usuario", placeholder="Ingresa tu usuario...")
+            contraseña = st.text_input("🔑 Contraseña", type="password", placeholder="••••••••")
+            recordarme = st.checkbox("💾 Recordarme en este dispositivo")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            enviado = st.form_submit_button("🚀 Iniciar Sesión", use_container_width=True)
+            
+            if enviado:
+                if usuario == USUARIO_ADMIN and contraseña == CONTRASEÑA_ADMIN:
+                    st.session_state["authenticated"] = True
+                    if recordarme:
+                        cookie_manager.set("gestor_gastos_auth", "true", key="set_auth_cookie", expires_at=datetime.now() + timedelta(days=30))
+                    st.rerun()
+                else:
+                    st.error("❌ Usuario o contraseña incorrectos")
+    
     return False
 
 if not verificar_login():
