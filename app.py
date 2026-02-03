@@ -36,6 +36,7 @@ from validators import (  # Validación de datos
     validar_formulario_gasto, validar_formulario_ingreso, validar_formulario_deuda
 )
 from utils import obtener_secreto, connect_sheets_utility, clean_json_string, CHAT_SYSTEM_PROMPT
+import utils
 import actions
 
 # ============================================================
